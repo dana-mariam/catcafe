@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "601744533968",
+    "project_id": "catcafe-7dc2b",
+    "storage_bucket": "catcafe-7dc2b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:601744533968:android:14ed53dc4b719cf12eb1d5",
+        "android_client_info": {
+          "package_name": "com.example.catcafe"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmC1FxQinDTpS4yQw6d3K-gf0J0O7VSaw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
