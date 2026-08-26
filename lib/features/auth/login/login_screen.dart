@@ -1,8 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../../admin/admin_main_screen.dart';
+import '../../../user/user_main_screen.dart';
 import '../signup/signup_screen.dart';
 import '../../profile/profile_screen.dart';
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -30,6 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  //2
   Future<void> login() async {
     if (!formKey.currentState!.validate()) {
       return;
@@ -38,21 +43,55 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       isLoading = true;
     });
-
+//3
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final credential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text,
       );
 
-      if (!mounted) return;
+      final user = credential.user;
+//4
+      if (user == null) {
+        throw Exception('Login failed');
+      }
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const ProfileScreen(),
-        ),
-      );
+      // 5
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+//6
+      if (!userDoc.exists) {
+        throw Exception('User profile not found');
+      }
+//7
+      final data = userDoc.data();
+
+      final String role = data?['role'] ?? 'user';
+
+      if (!mounted) return;
+//8
+      // Admin
+      if (role == 'admin') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const AdminMainScreen(),
+          ),
+        );
+      }
+//9
+      // Normal user
+      else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const UserMainScreen(),
+          ),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       String message = 'Email or password is incorrect';
 
@@ -78,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Something went wrong'),
+          content: Text('Could not load your account'),
         ),
       );
     } finally {
@@ -178,16 +217,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 5),
 
-                // ------------------------------------------------
-                // Cat + form
-                // ------------------------------------------------
-
                 Stack(
                   clipBehavior: Clip.none,
                   alignment: Alignment.topCenter,
 
                   children: [
-                    // Form card
                     Container(
                       width: double.infinity,
 
@@ -204,7 +238,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFFCF6),
-                        borderRadius: BorderRadius.circular(35),
+                        borderRadius:
+                        BorderRadius.circular(35),
                       ),
 
                       child: Column(
@@ -265,7 +300,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             fieldDecoration(
                               hint: '••••••••',
                             ).copyWith(
-                              suffixIcon: IconButton(
+                              suffixIcon:
+                              IconButton(
                                 onPressed: () {
                                   setState(() {
                                     obscurePassword =
@@ -328,7 +364,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
                             child: ElevatedButton(
                               onPressed:
-                              isLoading ? null : login,
+                              isLoading
+                                  ? null
+                                  : login,
 
                               style:
                               ElevatedButton.styleFrom(
@@ -402,8 +440,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       text: 'Sign Up',
 
                                       style: TextStyle(
-                                        color:
-                                        Color(
+                                        color: Color(
                                           0xFF713D27,
                                         ),
                                         fontWeight:
@@ -421,10 +458,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                     ),
-
-                    // ------------------------------------------------
-                    // Cat sitting directly above the form
-                    // ------------------------------------------------
 
                     Positioned(
                       top: 15,

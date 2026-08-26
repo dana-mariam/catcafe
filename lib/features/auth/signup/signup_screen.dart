@@ -141,8 +141,8 @@ class _SignupScreenState extends State<SignupScreen> {
         'phone': '',
         'bio': '',
         'photoUrl': '',
-        'createdAt':
-        FieldValue.serverTimestamp(),
+        'role': 'user',
+        'createdAt': FieldValue.serverTimestamp(),
       });
 
       if (!mounted) return;

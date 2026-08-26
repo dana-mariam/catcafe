@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 class CloudinaryService {
-  static const String cloudName = 'hqkrgztt';
+  static const String cloudName = 'hgkrgztt';
   static const String uploadPreset = 'catcafe_unsigned';
 
   static Future<String?> uploadImage(File imageFile) async {
@@ -13,7 +13,10 @@ class CloudinaryService {
         'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
       );
 
-      final request = http.MultipartRequest('POST', url);
+      final request = http.MultipartRequest(
+        'POST',
+        url,
+      );
 
       request.fields['upload_preset'] = uploadPreset;
 
@@ -26,7 +29,13 @@ class CloudinaryService {
 
       final response = await request.send();
 
-      final responseBody = await response.stream.bytesToString();
+      final responseBody =
+      await response.stream.bytesToString();
+
+      print('========== CLOUDINARY ==========');
+      print('Status: ${response.statusCode}');
+      print('Response: $responseBody');
+      print('================================');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(responseBody);
@@ -34,12 +43,12 @@ class CloudinaryService {
         return data['secure_url'] as String?;
       }
 
-      print('Cloudinary upload failed:');
-      print(responseBody);
-
       return null;
     } catch (e) {
-      print('Cloudinary error: $e');
+      print('========== CLOUDINARY ERROR ==========');
+      print(e);
+      print('======================================');
+
       return null;
     }
   }
