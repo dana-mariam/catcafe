@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../admin/edit_product_screen.dart';
+import '../user/product_details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,11 +18,21 @@ class _HomeScreenState extends State<HomeScreen> {
   String userRole = 'user';
   bool isLoadingRole = true;
 
+  final Color backgroundColor = const Color(0xFFF8EBD7);
+  final Color cardColor = const Color(0xFFFFFCF6);
+  final Color brown = const Color(0xFF713D27);
+  final Color lightBrown = const Color(0xFF9A6D58);
+  final Color softBrown = const Color(0xFFEAD5BF);
+
   @override
   void initState() {
     super.initState();
     loadUserRole();
   }
+
+  // ============================================================
+  // USER ROLE
+  // ============================================================
 
   Future<void> loadUserRole() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -41,11 +52,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final data = doc.data();
 
+      if (!mounted) return;
+
       setState(() {
         userRole = data?['role'] ?? 'user';
         isLoadingRole = false;
       });
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         userRole = 'user';
         isLoadingRole = false;
@@ -55,6 +70,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool get isAdmin => userRole == 'admin';
 
+  // ============================================================
+  // DELETE PRODUCT
+  // ============================================================
+
   Future<void> deleteProduct(
       BuildContext context,
       String productId,
@@ -63,33 +82,44 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFFFFFCF6),
+          backgroundColor: cardColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          title: const Text(
+          title: Text(
             'Delete Product?',
             style: TextStyle(
-              color: Color(0xFF713D27),
+              color: brown,
               fontWeight: FontWeight.bold,
             ),
           ),
-          content: const Text(
+          content: Text(
             'This product will be removed from the menu.',
             style: TextStyle(
-              color: Color(0xFF9A6D58),
+              color: lightBrown,
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.pop(context, false);
+              },
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: brown,
+                ),
+              ),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () {
+                Navigator.pop(context, true);
+              },
               child: const Text(
                 'Delete',
-                style: TextStyle(color: Colors.red),
+                style: TextStyle(
+                  color: Colors.red,
+                ),
               ),
             ),
           ],
@@ -108,16 +138,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Product deleted'),
+        content: Text(
+          'Product deleted',
+        ),
       ),
     );
   }
+
+  // ============================================================
+  // EDIT PRODUCT
+  // ============================================================
 
   void openEditProduct(
       BuildContext context,
       QueryDocumentSnapshot doc,
       ) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data =
+    doc.data() as Map<String, dynamic>;
 
     Navigator.push(
       context,
@@ -130,167 +167,322 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ============================================================
+  // PRODUCT DETAILS
+  // ============================================================
+
+  void openProductDetails(
+      BuildContext context,
+      QueryDocumentSnapshot doc,
+      ) {
+    final data =
+    doc.data() as Map<String, dynamic>;
+
+    final num quantity =
+        data['quantity'] ?? 0;
+
+    if (!isAdmin && quantity <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'This product is currently out of stock.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProductDetailsScreen(
+          productId: doc.id,
+          product: data,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8EBD7),
+      backgroundColor: backgroundColor,
 
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF8EBD7),
-        elevation: 0,
-        centerTitle: true,
-        title: const Column(
-          children: [
-            Text(
-              'Cat Cafe',
-              style: TextStyle(
-                color: Color(0xFF713D27),
-                fontSize: 26,
-                fontWeight: FontWeight.w900,
-                fontFamily: 'serif',
-                letterSpacing: 1,
-              ),
-            ),
-            Text(
-              'Coffee • Cats • Cozy Things',
-              style: TextStyle(
-                color: Color(0xFF9A6D58),
-                fontSize: 10,
-                letterSpacing: 1.5,
-              ),
-            ),
-          ],
+      body: SafeArea(
+        child: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('products')
+              .orderBy('name')
+              .snapshots(),
+
+          builder: (context, productSnapshot) {
+            if (productSnapshot.connectionState ==
+                ConnectionState.waiting) {
+              return Center(
+                child: CircularProgressIndicator(
+                  color: brown,
+                ),
+              );
+            }
+
+            if (productSnapshot.hasError) {
+              return Center(
+                child: Text(
+                  'Something went wrong.',
+                  style: TextStyle(
+                    color: brown,
+                  ),
+                ),
+              );
+            }
+
+            final products =
+                productSnapshot.data?.docs ?? [];
+
+            final filteredProducts =
+            selectedCategoryId == 'all'
+                ? products
+                : products.where((doc) {
+              final data =
+              doc.data()
+              as Map<String, dynamic>;
+
+              return data['categoryId'] ==
+                  selectedCategoryId;
+            }).toList();
+
+            return CustomScrollView(
+              physics:
+              const BouncingScrollPhysics(),
+
+              slivers: [
+                // ==================================================
+                // HEADER
+                // ==================================================
+
+                SliverToBoxAdapter(
+                  child: _buildHeader(),
+                ),
+
+                // ==================================================
+                // HERO
+                // ==================================================
+
+                if (products.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding:
+                      const EdgeInsets.fromLTRB(
+                        18,
+                        4,
+                        18,
+                        28,
+                      ),
+                      child:
+                      _buildHero(products.first),
+                    ),
+                  ),
+
+                // ==================================================
+                // CATEGORY TITLE
+                // ==================================================
+
+                SliverToBoxAdapter(
+                  child: _buildSectionHeader(
+                    'EXPLORE OUR MENU',
+                    'Find something made for your mood',
+                  ),
+                ),
+
+                // ==================================================
+                // CATEGORIES
+                // ==================================================
+
+                SliverToBoxAdapter(
+                  child: _buildCategories(),
+                ),
+
+                // ==================================================
+                // POPULAR TITLE
+                // ==================================================
+
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding:
+                    const EdgeInsets.fromLTRB(
+                      18,
+                      30,
+                      18,
+                      14,
+                    ),
+                    child: Row(
+                      crossAxisAlignment:
+                      CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                selectedCategoryId ==
+                                    'all'
+                                    ? 'POPULAR TODAY'
+                                    : 'MENU ITEMS',
+                                style: TextStyle(
+                                  color: brown,
+                                  fontSize: 17,
+                                  fontWeight:
+                                  FontWeight.w900,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                              const SizedBox(
+                                height: 4,
+                              ),
+                              Text(
+                                selectedCategoryId ==
+                                    'all'
+                                    ? 'Something worth coming back for'
+                                    : 'Made fresh for you',
+                                style: TextStyle(
+                                  color: lightBrown,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${filteredProducts.length} items',
+                          style: TextStyle(
+                            color: lightBrown,
+                            fontSize: 11,
+                            fontWeight:
+                            FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ==================================================
+                // PRODUCT LIST
+                // ==================================================
+
+                if (filteredProducts.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _buildEmptyProducts(),
+                  )
+                else
+                  SliverPadding(
+                    padding:
+                    const EdgeInsets.fromLTRB(
+                      18,
+                      0,
+                      18,
+                      35,
+                    ),
+
+                    sliver: SliverList(
+                      delegate:
+                      SliverChildBuilderDelegate(
+                            (context, index) {
+                          final doc =
+                          filteredProducts[index];
+
+                          return _buildMenuProduct(
+                            context,
+                            doc,
+                          );
+                        },
+                        childCount:
+                        filteredProducts.length,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
+    );
+  }
 
-      body: Column(
+  // ============================================================
+  // HEADER
+  // ============================================================
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        20,
+        15,
+        16,
+        10,
+      ),
+
+      child: Row(
         children: [
-          const SizedBox(height: 8),
-
-          // Categories
-          SizedBox(
-            height: 48,
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('categories')
-                  .orderBy('name')
-                  .snapshots(),
-
-              builder: (context, snapshot) {
-                final categories =
-                    snapshot.data?.docs ?? [];
-
-                return ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cat Cafe',
+                  style: TextStyle(
+                    color: brown,
+                    fontSize: 27,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: 'serif',
+                    letterSpacing: 1,
                   ),
-                  children: [
-                    categoryChip(
-                      id: 'all',
-                      title: 'All',
-                    ),
-                    ...categories.map((doc) {
-                      final data =
-                      doc.data()
-                      as Map<String, dynamic>;
+                ),
 
-                      return categoryChip(
-                        id: doc.id,
-                        title: data['name'] ?? '',
-                      );
-                    }),
-                  ],
-                );
-              },
+                const SizedBox(height: 2),
+
+                Text(
+                  'COFFEE • CATS • COZY THINGS',
+                  style: TextStyle(
+                    color: lightBrown,
+                    fontSize: 8,
+                    letterSpacing: 2,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
 
-          const SizedBox(height: 10),
+          Container(
+            width: 42,
+            height: 42,
 
-          // Products
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('products')
-                  .orderBy('name')
-                  .snapshots(),
+            decoration: BoxDecoration(
+              color: cardColor,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color:
+                  Colors.brown.withOpacity(0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
 
-              builder: (context, snapshot) {
-                if (snapshot.connectionState ==
-                    ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF713D27),
-                    ),
-                  );
-                }
-
-                if (snapshot.hasError) {
-                  return const Center(
-                    child: Text(
-                      'Something went wrong.',
-                      style: TextStyle(
-                        color: Color(0xFF713D27),
-                      ),
-                    ),
-                  );
-                }
-
-                final products =
-                    snapshot.data?.docs ?? [];
-
-                final filteredProducts =
-                selectedCategoryId == 'all'
-                    ? products
-                    : products.where((doc) {
-                  final data =
-                  doc.data()
-                  as Map<String,
-                      dynamic>;
-
-                  return data['categoryId'] ==
-                      selectedCategoryId;
-                }).toList();
-
-                if (filteredProducts.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No products in this category yet.',
-                      style: TextStyle(
-                        color: Color(0xFF9A6D58),
-                        fontSize: 15,
-                      ),
-                    ),
-                  );
-                }
-
-                return GridView.builder(
-                  padding: const EdgeInsets.fromLTRB(
-                    16,
-                    8,
-                    16,
-                    20,
-                  ),
-                  gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 13,
-                    mainAxisSpacing: 15,
-                    childAspectRatio: 0.69,
-                  ),
-                  itemCount: filteredProducts.length,
-                  itemBuilder: (context, index) {
-                    final doc =
-                    filteredProducts[index];
-
-                    return buildProductCard(
-                      context,
-                      doc,
-                    );
-                  },
-                );
-              },
+            child: Icon(
+              Icons.menu_rounded,
+              color: brown,
+              size: 21,
             ),
           ),
         ],
@@ -298,11 +490,363 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget categoryChip({
+  // ============================================================
+  // HERO
+  // ============================================================
+
+  Widget _buildHero(
+      QueryDocumentSnapshot doc,
+      ) {
+    final data =
+    doc.data() as Map<String, dynamic>;
+
+    final name =
+        data['name']?.toString() ?? '';
+
+    final description =
+        data['description']?.toString() ?? '';
+
+    final imageUrl =
+        data['imageUrl']?.toString() ?? '';
+
+    final price =
+        (data['price'] as num?) ?? 0;
+
+    final quantity =
+        (data['quantity'] as num?) ?? 0;
+
+    final outOfStock =
+        quantity <= 0;
+
+    return GestureDetector(
+      onTap: () {
+        openProductDetails(
+          context,
+          doc,
+        );
+      },
+
+      child: Container(
+        height: 245,
+
+        decoration: BoxDecoration(
+          color: brown,
+          borderRadius:
+          BorderRadius.circular(30),
+
+          boxShadow: [
+            BoxShadow(
+              color:
+              Colors.brown.withOpacity(0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 9),
+            ),
+          ],
+        ),
+
+        child: ClipRRect(
+          borderRadius:
+          BorderRadius.circular(30),
+
+          child: Stack(
+            children: [
+              // IMAGE
+              Positioned.fill(
+                child: imageUrl.isNotEmpty
+                    ? Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+
+                  errorBuilder:
+                      (_, __, ___) {
+                    return _heroPlaceholder();
+                  },
+                )
+                    : _heroPlaceholder(),
+              ),
+
+              // DARK OVERLAY
+              Positioned.fill(
+                child: Container(
+                  decoration:
+                  BoxDecoration(
+                    gradient: LinearGradient(
+                      begin:
+                      Alignment.topCenter,
+                      end:
+                      Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.03),
+                        Colors.black.withOpacity(0.18),
+                        Colors.black.withOpacity(0.78),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // FEATURED LABEL
+              Positioned(
+                top: 16,
+                left: 16,
+
+                child: Container(
+                  padding:
+                  const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
+
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius:
+                    BorderRadius.circular(20),
+                  ),
+
+                  child: Text(
+                    'TODAY\'S PICK',
+                    style: TextStyle(
+                      color: brown,
+                      fontSize: 8,
+                      fontWeight:
+                      FontWeight.w900,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ),
+
+              // ADMIN MENU
+              if (isAdmin)
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child:
+                  _buildAdminMenu(
+                    context,
+                    doc,
+                    dark: true,
+                  ),
+                ),
+
+              // BOTTOM CONTENT
+              Positioned(
+                left: 18,
+                right: 18,
+                bottom: 18,
+
+                child: Row(
+                  crossAxisAlignment:
+                  CrossAxisAlignment.end,
+
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment
+                            .start,
+                        children: [
+                          Text(
+                            name,
+                            maxLines: 1,
+                            overflow:
+                            TextOverflow.ellipsis,
+
+                            style:
+                            const TextStyle(
+                              color: Colors.white,
+                              fontSize: 23,
+                              fontWeight:
+                              FontWeight.w900,
+                            ),
+                          ),
+
+                          const SizedBox(
+                            height: 5,
+                          ),
+
+                          Text(
+                            description.isEmpty
+                                ? 'A cozy favorite from our menu.'
+                                : description,
+                            maxLines: 1,
+                            overflow:
+                            TextOverflow.ellipsis,
+
+                            style:
+                            const TextStyle(
+                              color:
+                              Colors.white70,
+                              fontSize: 10,
+                            ),
+                          ),
+
+                          const SizedBox(
+                            height: 10,
+                          ),
+
+                          if (outOfStock)
+                            _outOfStockBadge(
+                              dark: true,
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(
+                      width: 12,
+                    ),
+
+                    Text(
+                      '\$${price.toStringAsFixed(2)}',
+                      style:
+                      const TextStyle(
+                        color: Colors.white,
+                        fontSize: 21,
+                        fontWeight:
+                        FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _heroPlaceholder() {
+    return Container(
+      color: const Color(0xFF8A5A43),
+      child: const Center(
+        child: Icon(
+          Icons.local_cafe_rounded,
+          color: Colors.white54,
+          size: 55,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // SECTION HEADER
+  // ============================================================
+
+  Widget _buildSectionHeader(
+      String title,
+      String subtitle,
+      ) {
+    return Padding(
+      padding:
+      const EdgeInsets.symmetric(
+        horizontal: 18,
+      ),
+
+      child: Column(
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+
+        children: [
+          Text(
+            title,
+
+            style: TextStyle(
+              color: brown,
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1,
+            ),
+          ),
+
+          const SizedBox(
+            height: 4,
+          ),
+
+          Text(
+            subtitle,
+
+            style: TextStyle(
+              color: lightBrown,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // CATEGORIES
+  // ============================================================
+
+  Widget _buildCategories() {
+    return SizedBox(
+      height: 91,
+
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('categories')
+            .orderBy('name')
+            .snapshots(),
+
+        builder:
+            (context, snapshot) {
+          final categories =
+              snapshot.data?.docs ?? [];
+
+          return ListView(
+            scrollDirection:
+            Axis.horizontal,
+
+            padding:
+            const EdgeInsets.fromLTRB(
+              18,
+              15,
+              18,
+              0,
+            ),
+
+            children: [
+              _categoryItem(
+                id: 'all',
+                title: 'All',
+                icon: Icons.apps_rounded,
+              ),
+
+              ...categories.map(
+                    (doc) {
+                  final data =
+                  doc.data()
+                  as Map<String, dynamic>;
+
+                  final title =
+                      data['name']
+                          ?.toString() ??
+                          '';
+
+                  return _categoryItem(
+                    id: doc.id,
+                    title: title,
+                    icon:
+                    _categoryIcon(title),
+                  );
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _categoryItem({
     required String id,
     required String title,
+    required IconData icon,
   }) {
-    final bool selected =
+    final selected =
         selectedCategoryId == id;
 
     return GestureDetector(
@@ -311,251 +855,709 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedCategoryId = id;
         });
       },
+
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 10,
+        duration:
+        const Duration(
+          milliseconds: 200,
         ),
+
+        width: 78,
+
+        margin:
+        const EdgeInsets.only(
+          right: 10,
+        ),
+
         decoration: BoxDecoration(
           color: selected
-              ? const Color(0xFF713D27)
-              : const Color(0xFFFFFCF6),
-          borderRadius: BorderRadius.circular(25),
-        ),
-        child: Text(
-          title,
-          style: TextStyle(
+              ? brown
+              : cardColor,
+
+          borderRadius:
+          BorderRadius.circular(22),
+
+          border: Border.all(
             color: selected
-                ? Colors.white
-                : const Color(0xFF713D27),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+                ? brown
+                : softBrown,
           ),
+        ),
+
+        child: Column(
+          mainAxisAlignment:
+          MainAxisAlignment.center,
+
+          children: [
+            Icon(
+              icon,
+              color: selected
+                  ? Colors.white
+                  : brown,
+              size: 23,
+            ),
+
+            const SizedBox(
+              height: 7,
+            ),
+
+            Text(
+              title,
+
+              maxLines: 1,
+
+              overflow:
+              TextOverflow.ellipsis,
+
+              style: TextStyle(
+                color: selected
+                    ? Colors.white
+                    : brown,
+                fontSize: 10,
+                fontWeight:
+                FontWeight.w700,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget buildProductCard(
+  IconData _categoryIcon(
+      String category,
+      ) {
+    final value =
+    category.toLowerCase();
+
+    if (value.contains('coffee') ||
+        value.contains('cafe')) {
+      return Icons.coffee_rounded;
+    }
+
+    if (value.contains('dessert') ||
+        value.contains('cake') ||
+        value.contains('sweet')) {
+      return Icons.cake_outlined;
+    }
+
+    if (value.contains('drink') ||
+        value.contains('juice')) {
+      return Icons.local_drink_outlined;
+    }
+
+    if (value.contains('tea')) {
+      return Icons.emoji_food_beverage_outlined;
+    }
+
+    return Icons.restaurant_menu_rounded;
+  }
+
+  // ============================================================
+  // MENU PRODUCT
+  // ============================================================
+
+  Widget _buildMenuProduct(
       BuildContext context,
       QueryDocumentSnapshot doc,
       ) {
     final data =
     doc.data() as Map<String, dynamic>;
 
-    final String name = data['name'] ?? '';
+    final String name =
+        data['name']?.toString() ?? '';
+
     final String description =
-        data['description'] ?? '';
+        data['description']?.toString() ?? '';
+
     final String imageUrl =
-        data['imageUrl'] ?? '';
+        data['imageUrl']?.toString() ?? '';
 
-    final num price = data['price'] ?? 0;
+    final String categoryId =
+        data['categoryId']?.toString() ?? '';
+
+    final num price =
+        (data['price'] as num?) ?? 0;
+
     final num quantity =
-        data['quantity'] ?? 0;
+        (data['quantity'] as num?) ?? 0;
 
-    final bool outOfStock = quantity <= 0;
+    final bool outOfStock =
+        quantity <= 0;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFCF6),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.brown.withOpacity(0.07),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () {
+        openProductDetails(
+          context,
+          doc,
+        );
+      },
+
+      child: Container(
+        margin:
+        const EdgeInsets.only(
+          bottom: 13,
+        ),
+
+        decoration: BoxDecoration(
+          color: cardColor,
+
+          borderRadius:
+          BorderRadius.circular(24),
+
+          border: Border.all(
+            color:
+            const Color(0xFFEEDFCF),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Stack(
-              children: [
-                ClipRRect(
-                  borderRadius:
-                  const BorderRadius.vertical(
-                    top: Radius.circular(24),
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: double.infinity,
-                    child: imageUrl.isNotEmpty
-                        ? Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                    )
-                        : const Center(
-                      child: Icon(
-                        Icons.image_outlined,
-                        size: 45,
-                        color:
-                        Color(0xFF9A6D58),
-                      ),
-                    ),
-                  ),
+        ),
+
+        child: Padding(
+          padding:
+          const EdgeInsets.all(10),
+
+          child: Row(
+            children: [
+              // ==================================================
+              // IMAGE
+              // ==================================================
+
+              ClipRRect(
+                borderRadius:
+                BorderRadius.circular(18),
+
+                child: SizedBox(
+                  width: 94,
+                  height: 94,
+
+                  child: imageUrl.isNotEmpty
+                      ? Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+
+                    color: outOfStock
+                        ? Colors.white
+                        .withOpacity(0.35)
+                        : null,
+
+                    colorBlendMode:
+                    outOfStock
+                        ? BlendMode.saturation
+                        : null,
+
+                    errorBuilder:
+                        (_, __, ___) {
+                      return _smallPlaceholder();
+                    },
+                  )
+                      : _smallPlaceholder(),
                 ),
+              ),
 
-                if (outOfStock)
-                  Positioned(
-                    left: 10,
-                    top: 10,
-                    child: Container(
-                      padding:
-                      const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color:
-                        Colors.black.withOpacity(
-                          0.65,
-                        ),
-                        borderRadius:
-                        BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'OUT OF STOCK',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
+              const SizedBox(
+                width: 14,
+              ),
 
-                if (isAdmin)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white
-                            .withOpacity(0.93),
-                        shape: BoxShape.circle,
-                      ),
-                      child: PopupMenuButton<String>(
-                        padding: EdgeInsets.zero,
-                        icon: const Icon(
-                          Icons.more_horiz,
-                          color: Color(0xFF713D27),
-                        ),
-                        onSelected: (value) {
-                          if (value == 'edit') {
-                            openEditProduct(
-                              context,
-                              doc,
-                            );
-                          }
+              // ==================================================
+              // INFO
+              // ==================================================
 
-                          if (value == 'delete') {
-                            deleteProduct(
-                              context,
-                              doc.id,
-                            );
-                          }
-                        },
-                        itemBuilder: (context) => const [
-                          PopupMenuItem(
-                            value: 'edit',
-                            child: Text('Edit'),
-                          ),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Text('Delete'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                  CrossAxisAlignment.start,
 
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              12,
-              10,
-              10,
-              12,
-            ),
-            child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF713D27),
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                const SizedBox(height: 4),
-
-                Text(
-                  description,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF9A6D58),
-                    fontSize: 11,
-                  ),
-                ),
-
-                const SizedBox(height: 9),
-
-                Row(
-                  mainAxisAlignment:
-                  MainAxisAlignment.spaceBetween,
                   children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+
+                            maxLines: 1,
+
+                            overflow:
+                            TextOverflow.ellipsis,
+
+                            style: TextStyle(
+                              color: brown,
+                              fontSize: 16,
+                              fontWeight:
+                              FontWeight.w900,
+                            ),
+                          ),
+                        ),
+
+                        if (!isAdmin)
+                          _favoriteButton(
+                            doc.id,
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(
+                      height: 4,
+                    ),
+
                     Text(
-                      '\$${price.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: Color(0xFF713D27),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
+                      description.isEmpty
+                          ? 'Freshly prepared for you.'
+                          : description,
+
+                      maxLines: 2,
+
+                      overflow:
+                      TextOverflow.ellipsis,
+
+                      style: TextStyle(
+                        color: lightBrown,
+                        fontSize: 10,
+                        height: 1.35,
                       ),
                     ),
 
-                    if (!isAdmin)
-                      IconButton(
-                        onPressed: () {
-                          // Favorites will be connected next.
-                        },
-                        padding: EdgeInsets.zero,
-                        constraints:
-                        const BoxConstraints(),
-                        icon: const Icon(
-                          Icons.favorite_border,
-                          color: Color(0xFF713D27),
-                          size: 22,
+                    const SizedBox(
+                      height: 8,
+                    ),
+
+                    Row(
+                      children: [
+                        _categoryLabel(
+                          categoryId,
                         ),
-                      )
-                    else
-                      Text(
-                        'Qty $quantity',
-                        style: const TextStyle(
-                          color: Color(0xFF9A6D58),
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+
+                        const Spacer(),
+
+                        Text(
+                          '\$${price.toStringAsFixed(2)}',
+
+                          style: TextStyle(
+                            color: brown,
+                            fontSize: 16,
+                            fontWeight:
+                            FontWeight.w900,
+                          ),
                         ),
-                      ),
+                      ],
+                    ),
+
+                    const SizedBox(
+                      height: 7,
+                    ),
+
+                    Row(
+                      children: [
+                        if (outOfStock)
+                          _outOfStockBadge()
+                        else
+                          Row(
+                            children: [
+                              Container(
+                                width: 7,
+                                height: 7,
+                                decoration:
+                                const BoxDecoration(
+                                  color:
+                                  Color(0xFF76945F),
+                                  shape:
+                                  BoxShape.circle,
+                                ),
+                              ),
+
+                              const SizedBox(
+                                width: 5,
+                              ),
+
+                              Text(
+                                '$quantity available',
+
+                                style:
+                                const TextStyle(
+                                  color:
+                                  Color(0xFF76945F),
+                                  fontSize: 9,
+                                  fontWeight:
+                                  FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                        const Spacer(),
+
+                        if (isAdmin)
+                          _buildAdminMenu(
+                            context,
+                            doc,
+                          ),
+                      ],
+                    ),
                   ],
                 ),
-              ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // CATEGORY LABEL
+  // ============================================================
+
+  Widget _categoryLabel(
+      String categoryId,
+      ) {
+    if (categoryId.isEmpty) {
+      return const SizedBox();
+    }
+
+    return StreamBuilder<
+        DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('categories')
+          .doc(categoryId)
+          .snapshots(),
+
+      builder:
+          (context, snapshot) {
+        String name = '';
+
+        if (snapshot.hasData &&
+            snapshot.data!.exists) {
+          final data =
+          snapshot.data!.data();
+
+          name =
+              data?['name']
+                  ?.toString() ??
+                  '';
+        }
+
+        if (name.isEmpty) {
+          return const SizedBox();
+        }
+
+        return Container(
+          padding:
+          const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 4,
+          ),
+
+          decoration: BoxDecoration(
+            color:
+            const Color(0xFFF4E4D2),
+
+            borderRadius:
+            BorderRadius.circular(8),
+          ),
+
+          child: Text(
+            name,
+
+            style: TextStyle(
+              color: lightBrown,
+              fontSize: 8,
+              fontWeight:
+              FontWeight.w700,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // FAVORITE
+  // ============================================================
+
+  Widget _favoriteButton(
+      String productId,
+      ) {
+    return FutureBuilder<bool>(
+      future: isProductFavorite(
+        productId,
+      ),
+
+      builder:
+          (context, snapshot) {
+        final isFavorite =
+            snapshot.data ?? false;
+
+        return GestureDetector(
+          onTap: () async {
+            await toggleFavorite(
+              productId,
+            );
+
+            if (mounted) {
+              setState(() {});
+            }
+          },
+
+          child: Container(
+            width: 34,
+            height: 34,
+
+            decoration: BoxDecoration(
+              color:
+              const Color(0xFFF8EBD7),
+              shape: BoxShape.circle,
+            ),
+
+            child: Icon(
+              isFavorite
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
+
+              color: brown,
+              size: 17,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // ADMIN MENU
+  // ============================================================
+
+  Widget _buildAdminMenu(
+      BuildContext context,
+      QueryDocumentSnapshot doc, {
+        bool dark = false,
+      }) {
+    return Container(
+      width: 36,
+      height: 36,
+
+      decoration: BoxDecoration(
+        color: dark
+            ? Colors.white.withOpacity(0.92)
+            : const Color(0xFFF8EBD7),
+
+        shape: BoxShape.circle,
+      ),
+
+      child: PopupMenuButton<String>(
+        padding: EdgeInsets.zero,
+
+        icon: Icon(
+          Icons.more_horiz_rounded,
+          color: brown,
+          size: 20,
+        ),
+
+        onSelected: (value) {
+          if (value == 'edit') {
+            openEditProduct(
+              context,
+              doc,
+            );
+          }
+
+          if (value == 'delete') {
+            deleteProduct(
+              context,
+              doc.id,
+            );
+          }
+        },
+
+        itemBuilder: (context) => const [
+          PopupMenuItem(
+            value: 'edit',
+            child: Text(
+              'Edit',
+            ),
+          ),
+
+          PopupMenuItem(
+            value: 'delete',
+            child: Text(
+              'Delete',
             ),
           ),
         ],
       ),
     );
+  }
+
+  // ============================================================
+  // OUT OF STOCK
+  // ============================================================
+
+  Widget _outOfStockBadge({
+    bool dark = false,
+  }) {
+    return Container(
+      padding:
+      const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 4,
+      ),
+
+      decoration: BoxDecoration(
+        color: dark
+            ? Colors.white.withOpacity(0.18)
+            : const Color(0xFFF2D6D0),
+
+        borderRadius:
+        BorderRadius.circular(8),
+      ),
+
+      child: Text(
+        'OUT OF STOCK',
+
+        style: TextStyle(
+          color: dark
+              ? Colors.white
+              : const Color(0xFFB34C3F),
+          fontSize: 8,
+          fontWeight:
+          FontWeight.w900,
+          letterSpacing: 0.4,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // IMAGE PLACEHOLDER
+  // ============================================================
+
+  Widget _smallPlaceholder() {
+    return Container(
+      color: const Color(0xFFF0DFCC),
+
+      child: Icon(
+        Icons.local_cafe_rounded,
+        color: lightBrown,
+        size: 30,
+      ),
+    );
+  }
+
+  // ============================================================
+  // EMPTY
+  // ============================================================
+
+  Widget _buildEmptyProducts() {
+    return Center(
+      child: Padding(
+        padding:
+        const EdgeInsets.all(30),
+
+        child: Column(
+          mainAxisSize:
+          MainAxisSize.min,
+
+          children: [
+            Container(
+              width: 78,
+              height: 78,
+
+              decoration:
+              const BoxDecoration(
+                color:
+                Color(0xFFF1DDC8),
+                shape:
+                BoxShape.circle,
+              ),
+
+              child: Icon(
+                Icons.local_cafe_outlined,
+                color: brown,
+                size: 36,
+              ),
+            ),
+
+            const SizedBox(
+              height: 15,
+            ),
+
+            Text(
+              'Nothing here yet',
+              style: TextStyle(
+                color: brown,
+                fontSize: 18,
+                fontWeight:
+                FontWeight.w800,
+              ),
+            ),
+
+            const SizedBox(
+              height: 5,
+            ),
+
+            Text(
+              'Try another category.',
+              style: TextStyle(
+                color: lightBrown,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // FAVORITES FIRESTORE
+  // ============================================================
+
+  Future<bool> isProductFavorite(
+      String productId,
+      ) async {
+    final user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return false;
+    }
+
+    final doc =
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('favorites')
+        .doc(productId)
+        .get();
+
+    return doc.exists;
+  }
+
+  Future<void> toggleFavorite(
+      String productId,
+      ) async {
+    final user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return;
+    }
+
+    final favoriteRef =
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('favorites')
+        .doc(productId);
+
+    final existing =
+    await favoriteRef.get();
+
+    if (existing.exists) {
+      await favoriteRef.delete();
+    } else {
+      await favoriteRef.set({
+        'productId': productId,
+        'createdAt':
+        FieldValue.serverTimestamp(),
+      });
+    }
   }
 }

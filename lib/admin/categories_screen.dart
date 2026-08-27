@@ -5,14 +5,31 @@ class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
 
   @override
-  State<CategoriesScreen> createState() => _CategoriesScreenState();
+  State<CategoriesScreen> createState() =>
+      _CategoriesScreenState();
 }
 
-class _CategoriesScreenState extends State<CategoriesScreen> {
+class _CategoriesScreenState
+    extends State<CategoriesScreen> {
   final TextEditingController categoryController =
   TextEditingController();
 
   bool isAdding = false;
+
+  final Color backgroundColor =
+  const Color(0xFFF8EBD7);
+
+  final Color cardColor =
+  const Color(0xFFFFFCF6);
+
+  final Color brown =
+  const Color(0xFF713D27);
+
+  final Color lightBrown =
+  const Color(0xFF9A6D58);
+
+  final Color softBrown =
+  const Color(0xFFEAD5BF);
 
   @override
   void dispose() {
@@ -20,10 +37,24 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     super.dispose();
   }
 
+  // ============================================================
+  // ADD CATEGORY
+  // ============================================================
+
   Future<void> addCategory() async {
-    final name = categoryController.text.trim();
+    final name =
+    categoryController.text.trim();
 
     if (name.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Enter a category name',
+          ),
+        ),
+      );
+
       return;
     }
 
@@ -32,26 +63,61 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     });
 
     try {
-      await FirebaseFirestore.instance.collection('categories').add({
+      // Prevent duplicate categories
+      final existing =
+      await FirebaseFirestore.instance
+          .collection('categories')
+          .where(
+        'name',
+        isEqualTo: name,
+      )
+          .limit(1)
+          .get();
+
+      if (existing.docs.isNotEmpty) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          const SnackBar(
+            content: Text(
+              'This category already exists',
+            ),
+          ),
+        );
+
+        return;
+      }
+
+      await FirebaseFirestore.instance
+          .collection('categories')
+          .add({
         'name': name,
-        'createdAt': FieldValue.serverTimestamp(),
+        'createdAt':
+        FieldValue.serverTimestamp(),
       });
 
       categoryController.clear();
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
-          content: Text('Category added successfully'),
+          content: Text(
+            'Category added successfully',
+          ),
         ),
       );
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
-          content: Text('Failed to add category: $e'),
+          content: Text(
+            'Failed to add category: $e',
+          ),
         ),
       );
     } finally {
@@ -63,7 +129,13 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     }
   }
 
-  Future<void> deleteCategory(String categoryId) async {
+  // ============================================================
+  // DELETE CATEGORY
+  // ============================================================
+
+  Future<void> deleteCategory(
+      String categoryId,
+      ) async {
     await FirebaseFirestore.instance
         .collection('categories')
         .doc(categoryId)
@@ -71,39 +143,90 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
       const SnackBar(
-        content: Text('Category deleted'),
+        content: Text(
+          'Category deleted',
+        ),
       ),
     );
   }
+
+  // ============================================================
+  // CONFIRM DELETE
+  // ============================================================
 
   Future<void> confirmDelete(
       String categoryId,
       String categoryName,
       ) async {
-    final shouldDelete = await showDialog<bool>(
+    final shouldDelete =
+    await showDialog<bool>(
       context: context,
+
       builder: (context) {
         return AlertDialog(
-          title: const Text('Delete Category'),
-          content: Text(
-            'Delete "$categoryName"?',
+          backgroundColor: cardColor,
+
+          shape:
+          RoundedRectangleBorder(
+            borderRadius:
+            BorderRadius.circular(24),
           ),
+
+          title: Text(
+            'Remove Category?',
+            style: TextStyle(
+              color: brown,
+              fontWeight:
+              FontWeight.w900,
+            ),
+          ),
+
+          content: Text(
+            'Are you sure you want to remove "$categoryName" from the menu categories?',
+            style: TextStyle(
+              color: lightBrown,
+              height: 1.4,
+              fontSize: 13,
+            ),
+          ),
+
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context, false);
+                Navigator.pop(
+                  context,
+                  false,
+                );
               },
-              child: const Text('Cancel'),
+
+              child: Text(
+                'Keep',
+                style: TextStyle(
+                  color: brown,
+                  fontWeight:
+                  FontWeight.w700,
+                ),
+              ),
             ),
+
             TextButton(
               onPressed: () {
-                Navigator.pop(context, true);
+                Navigator.pop(
+                  context,
+                  true,
+                );
               },
+
               child: const Text(
-                'Delete',
-                style: TextStyle(color: Colors.red),
+                'Remove',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight:
+                  FontWeight.w800,
+                ),
               ),
             ),
           ],
@@ -112,191 +235,987 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     );
 
     if (shouldDelete == true) {
-      await deleteCategory(categoryId);
+      try {
+        await deleteCategory(
+          categoryId,
+        );
+      } catch (e) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to delete category: $e',
+            ),
+          ),
+        );
+      }
     }
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8EBD7),
+      backgroundColor:
+      backgroundColor,
 
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8EBD7),
+        backgroundColor:
+        backgroundColor,
+
         elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'Categories',
-          style: TextStyle(
-            color: Color(0xFF713D27),
-            fontWeight: FontWeight.bold,
-          ),
+
+        centerTitle: false,
+
+        title: Column(
+          crossAxisAlignment:
+          CrossAxisAlignment.start,
+
+          children: [
+            Text(
+              'Categories',
+              style: TextStyle(
+                color: brown,
+                fontSize: 22,
+                fontWeight:
+                FontWeight.w900,
+              ),
+            ),
+
+            Text(
+              'Organize your café menu',
+              style: TextStyle(
+                color: lightBrown,
+                fontSize: 9,
+                fontWeight:
+                FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
 
-      body: Column(
-        children: [
-          // Add category
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              20,
-              10,
-              20,
-              15,
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('categories')
+            .orderBy('name')
+            .snapshots(),
+
+        builder:
+            (context, snapshot) {
+          if (snapshot.connectionState ==
+              ConnectionState.waiting) {
+            return Center(
+              child:
+              CircularProgressIndicator(
+                color: brown,
+                strokeWidth: 2.5,
+              ),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return _buildError();
+          }
+
+          final categories =
+              snapshot.data?.docs ?? [];
+
+          return ListView(
+            physics:
+            const BouncingScrollPhysics(),
+
+            padding:
+            const EdgeInsets.fromLTRB(
+              18,
+              8,
+              18,
+              35,
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: categoryController,
-                    decoration: InputDecoration(
-                      hintText: 'New category',
-                      filled: true,
-                      fillColor: const Color(0xFFFFFCF6),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        borderSide: BorderSide.none,
+
+            children: [
+              // ==================================================
+              // INTRO CARD
+              // ==================================================
+
+              _buildIntroCard(
+                categories.length,
+              ),
+
+              const SizedBox(
+                height: 22,
+              ),
+
+              // ==================================================
+              // ADD CATEGORY
+              // ==================================================
+
+              _buildAddSection(),
+
+              const SizedBox(
+                height: 28,
+              ),
+
+              // ==================================================
+              // CATEGORY TITLE
+              // ==================================================
+
+              Row(
+                crossAxisAlignment:
+                CrossAxisAlignment.end,
+
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                      CrossAxisAlignment
+                          .start,
+
+                      children: [
+                        Text(
+                          'YOUR MENU CATEGORIES',
+                          style:
+                          TextStyle(
+                            color: brown,
+                            fontSize: 15,
+                            fontWeight:
+                            FontWeight
+                                .w900,
+                            letterSpacing:
+                            0.7,
+                          ),
+                        ),
+
+                        const SizedBox(
+                          height: 4,
+                        ),
+
+                        Text(
+                          'Keep your menu easy to explore.',
+                          style:
+                          TextStyle(
+                            color:
+                            lightBrown,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  if (categories.isNotEmpty)
+                    Container(
+                      padding:
+                      const EdgeInsets
+                          .symmetric(
+                        horizontal: 10,
+                        vertical: 6,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 15,
+
+                      decoration:
+                      BoxDecoration(
+                        color:
+                        const Color(
+                          0xFFF0DDC8,
+                        ),
+                        borderRadius:
+                        BorderRadius
+                            .circular(
+                          20,
+                        ),
+                      ),
+
+                      child: Text(
+                        '${categories.length}',
+                        style:
+                        TextStyle(
+                          color: brown,
+                          fontSize: 11,
+                          fontWeight:
+                          FontWeight
+                              .w900,
+                        ),
                       ),
                     ),
+                ],
+              ),
+
+              const SizedBox(
+                height: 14,
+              ),
+
+              // ==================================================
+              // EMPTY
+              // ==================================================
+
+              if (categories.isEmpty)
+                _buildEmptyState()
+
+              // ==================================================
+              // CATEGORY LIST
+              // ==================================================
+
+              else
+                ...categories.map(
+                      (doc) {
+                    final data =
+                    doc.data()
+                    as Map<String,
+                        dynamic>;
+
+                    final name =
+                        data['name']
+                            ?.toString() ??
+                            '';
+
+                    return _buildCategoryTile(
+                      doc.id,
+                      name,
+                    );
+                  },
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // ============================================================
+  // INTRO CARD
+  // ============================================================
+
+  Widget _buildIntroCard(
+      int count,
+      ) {
+    return Container(
+      padding:
+      const EdgeInsets.all(20),
+
+      decoration:
+      BoxDecoration(
+        color: brown,
+
+        borderRadius:
+        BorderRadius.circular(28),
+
+        boxShadow: [
+          BoxShadow(
+            color:
+            Colors.brown
+                .withOpacity(0.13),
+            blurRadius: 18,
+            offset:
+            const Offset(0, 7),
+          ),
+        ],
+      ),
+
+      child: Row(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+
+            decoration:
+            BoxDecoration(
+              color:
+              Colors.white
+                  .withOpacity(
+                0.13,
+              ),
+              shape:
+              BoxShape.circle,
+            ),
+
+            child: const Icon(
+              Icons
+                  .restaurant_menu_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+
+          const SizedBox(
+            width: 15,
+          ),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+
+              children: [
+                const Text(
+                  'Build your menu',
+                  style:
+                  TextStyle(
+                    color:
+                    Colors.white,
+                    fontSize: 17,
+                    fontWeight:
+                    FontWeight.w900,
                   ),
                 ),
 
-                const SizedBox(width: 10),
+                const SizedBox(
+                  height: 5,
+                ),
 
-                SizedBox(
-                  height: 52,
-                  width: 52,
-                  child: ElevatedButton(
-                    onPressed: isAdding ? null : addCategory,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF713D27),
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(17),
-                      ),
-                    ),
-                    child: isAdding
-                        ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                        : const Icon(Icons.add),
+                Text(
+                  count == 0
+                      ? 'Start by adding your first category.'
+                      : '$count categories are currently available to customers.',
+
+                  style:
+                  const TextStyle(
+                    color:
+                    Colors.white70,
+                    fontSize: 10,
+                    height: 1.35,
                   ),
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          // Categories list
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('categories')
-                  .orderBy('name')
-                  .snapshots(),
+  // ============================================================
+  // ADD SECTION
+  // ============================================================
 
-              builder: (context, snapshot) {
-                if (snapshot.connectionState ==
-                    ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF713D27),
-                    ),
-                  );
-                }
+  Widget _buildAddSection() {
+    return Container(
+      padding:
+      const EdgeInsets.all(18),
 
-                if (snapshot.hasError) {
-                  return const Center(
-                    child: Text(
-                      'Something went wrong',
-                    ),
-                  );
-                }
+      decoration:
+      BoxDecoration(
+        color: cardColor,
 
-                final categories =
-                    snapshot.data?.docs ?? [];
+        borderRadius:
+        BorderRadius.circular(25),
 
-                if (categories.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No categories yet',
-                      style: TextStyle(
-                        color: Color(0xFF9A6D58),
-                        fontSize: 16,
-                      ),
-                    ),
-                  );
-                }
+        border: Border.all(
+          color: softBrown,
+        ),
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
+        boxShadow: [
+          BoxShadow(
+            color:
+            Colors.brown
+                .withOpacity(0.04),
+            blurRadius: 12,
+            offset:
+            const Offset(0, 5),
+          ),
+        ],
+      ),
+
+      child: Column(
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+
+                decoration:
+                BoxDecoration(
+                  color:
+                  const Color(
+                    0xFFF2E0CC,
                   ),
-                  itemCount: categories.length,
-                  itemBuilder: (context, index) {
-                    final doc = categories[index];
+                  shape:
+                  BoxShape.circle,
+                ),
 
-                    final data =
-                    doc.data() as Map<String, dynamic>;
+                child: Icon(
+                  Icons.add_rounded,
+                  color: brown,
+                  size: 22,
+                ),
+              ),
 
-                    final name = data['name'] ?? '';
+              const SizedBox(
+                width: 11,
+              ),
 
-                    return Container(
-                      margin: const EdgeInsets.only(
-                        bottom: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFCF6),
-                        borderRadius:
-                        BorderRadius.circular(18),
-                      ),
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor:
-                          Color(0xFFF5E9D7),
-                          child: Icon(
-                            Icons.category_outlined,
-                            color: Color(0xFF713D27),
-                          ),
-                        ),
+              Column(
+                crossAxisAlignment:
+                CrossAxisAlignment
+                    .start,
 
-                        title: Text(
-                          name,
-                          style: const TextStyle(
-                            color: Color(0xFF713D27),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                children: [
+                  Text(
+                    'Add a category',
+                    style:
+                    TextStyle(
+                      color: brown,
+                      fontSize: 14,
+                      fontWeight:
+                      FontWeight.w900,
+                    ),
+                  ),
 
-                        trailing: IconButton(
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.red,
-                          ),
-                          onPressed: () {
-                            confirmDelete(
-                              doc.id,
-                              name,
-                            );
-                          },
-                        ),
-                      ),
-                    );
+                  const SizedBox(
+                    height: 2,
+                  ),
+
+                  Text(
+                    'Create a new menu section',
+                    style:
+                    TextStyle(
+                      color:
+                      lightBrown,
+                      fontSize: 9,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 15,
+          ),
+
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller:
+                  categoryController,
+
+                  textInputAction:
+                  TextInputAction.done,
+
+                  onSubmitted:
+                      (_) {
+                    if (!isAdding) {
+                      addCategory();
+                    }
                   },
-                );
-              },
+
+                  decoration:
+                  InputDecoration(
+                    hintText:
+                    'e.g. Coffee',
+
+                    prefixIcon:
+                    Icon(
+                      Icons
+                          .category_outlined,
+                      color:
+                      lightBrown,
+                      size: 20,
+                    ),
+
+                    filled: true,
+
+                    fillColor:
+                    backgroundColor,
+
+                    hintStyle:
+                    TextStyle(
+                      color: lightBrown
+                          .withOpacity(
+                        0.65,
+                      ),
+                      fontSize: 11,
+                    ),
+
+                    contentPadding:
+                    const EdgeInsets
+                        .symmetric(
+                      horizontal: 15,
+                      vertical: 16,
+                    ),
+
+                    border:
+                    OutlineInputBorder(
+                      borderRadius:
+                      BorderRadius.circular(
+                        17,
+                      ),
+                      borderSide:
+                      BorderSide.none,
+                    ),
+
+                    enabledBorder:
+                    OutlineInputBorder(
+                      borderRadius:
+                      BorderRadius.circular(
+                        17,
+                      ),
+                      borderSide:
+                      BorderSide.none,
+                    ),
+
+                    focusedBorder:
+                    OutlineInputBorder(
+                      borderRadius:
+                      BorderRadius.circular(
+                        17,
+                      ),
+                      borderSide:
+                      BorderSide(
+                        color: brown
+                            .withOpacity(
+                          0.3,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(
+                width: 10,
+              ),
+
+              GestureDetector(
+                onTap:
+                isAdding
+                    ? null
+                    : addCategory,
+
+                child:
+                AnimatedContainer(
+                  duration:
+                  const Duration(
+                    milliseconds: 200,
+                  ),
+
+                  width: 54,
+                  height: 54,
+
+                  decoration:
+                  BoxDecoration(
+                    color: isAdding
+                        ? brown.withOpacity(
+                      0.55,
+                    )
+                        : brown,
+
+                    borderRadius:
+                    BorderRadius.circular(
+                      17,
+                    ),
+                  ),
+
+                  child: isAdding
+                      ? const Padding(
+                    padding:
+                    EdgeInsets.all(
+                      17,
+                    ),
+                    child:
+                    CircularProgressIndicator(
+                      color:
+                      Colors.white,
+                      strokeWidth:
+                      2,
+                    ),
+                  )
+                      : const Icon(
+                    Icons
+                        .add_rounded,
+                    color:
+                    Colors.white,
+                    size: 25,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // CATEGORY TILE
+  // ============================================================
+
+  Widget _buildCategoryTile(
+      String categoryId,
+      String name,
+      ) {
+    return Dismissible(
+      key: ValueKey(categoryId),
+
+      direction:
+      DismissDirection.endToStart,
+
+      confirmDismiss:
+          (_) async {
+        await confirmDelete(
+          categoryId,
+          name,
+        );
+
+        return false;
+      },
+
+      background: Container(
+        margin:
+        const EdgeInsets.only(
+          bottom: 11,
+        ),
+
+        padding:
+        const EdgeInsets.only(
+          right: 22,
+        ),
+
+        alignment:
+        Alignment.centerRight,
+
+        decoration:
+        BoxDecoration(
+          color:
+          const Color(0xFFF3D8D3),
+          borderRadius:
+          BorderRadius.circular(
+            21,
+          ),
+        ),
+
+        child: const Icon(
+          Icons.delete_outline,
+          color: Colors.red,
+          size: 24,
+        ),
+      ),
+
+      child: Container(
+        margin:
+        const EdgeInsets.only(
+          bottom: 11,
+        ),
+
+        padding:
+        const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
+
+        decoration:
+        BoxDecoration(
+          color: cardColor,
+
+          borderRadius:
+          BorderRadius.circular(
+            21,
+          ),
+
+          border: Border.all(
+            color:
+            const Color(
+              0xFFEEDFCF,
+            ),
+          ),
+
+          boxShadow: [
+            BoxShadow(
+              color:
+              Colors.brown
+                  .withOpacity(
+                0.035,
+              ),
+              blurRadius: 10,
+              offset:
+              const Offset(0, 4),
+            ),
+          ],
+        ),
+
+        child: Row(
+          children: [
+            // ICON
+            Container(
+              width: 49,
+              height: 49,
+
+              decoration:
+              BoxDecoration(
+                color:
+                const Color(
+                  0xFFF2E0CC,
+                ),
+                borderRadius:
+                BorderRadius.circular(
+                  16,
+                ),
+              ),
+
+              child: Icon(
+                _categoryIcon(name),
+                color: brown,
+                size: 23,
+              ),
+            ),
+
+            const SizedBox(
+              width: 13,
+            ),
+
+            // NAME
+            Expanded(
+              child: Column(
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
+
+                children: [
+                  Text(
+                    name,
+
+                    maxLines: 1,
+
+                    overflow:
+                    TextOverflow.ellipsis,
+
+                    style:
+                    TextStyle(
+                      color: brown,
+                      fontSize: 14,
+                      fontWeight:
+                      FontWeight.w800,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 4,
+                  ),
+
+                  Text(
+                    'Menu category',
+                    style:
+                    TextStyle(
+                      color:
+                      lightBrown,
+                      fontSize: 9,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // DELETE
+            Container(
+              width: 38,
+              height: 38,
+
+              decoration:
+              BoxDecoration(
+                color:
+                const Color(
+                  0xFFF8EBD7,
+                ),
+                shape:
+                BoxShape.circle,
+              ),
+
+              child:
+              IconButton(
+                padding:
+                EdgeInsets.zero,
+
+                icon: const Icon(
+                  Icons
+                      .delete_outline_rounded,
+                  color:
+                  Color(0xFFB85B4E),
+                  size: 19,
+                ),
+
+                onPressed: () {
+                  confirmDelete(
+                    categoryId,
+                    name,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // CATEGORY ICON
+  // ============================================================
+
+  IconData _categoryIcon(
+      String category,
+      ) {
+    final value =
+    category.toLowerCase();
+
+    if (value.contains('coffee') ||
+        value.contains('cafe')) {
+      return Icons.coffee_rounded;
+    }
+
+    if (value.contains('dessert') ||
+        value.contains('cake') ||
+        value.contains('sweet')) {
+      return Icons.cake_outlined;
+    }
+
+    if (value.contains('drink') ||
+        value.contains('juice')) {
+      return Icons.local_drink_outlined;
+    }
+
+    if (value.contains('tea')) {
+      return Icons
+          .emoji_food_beverage_outlined;
+    }
+
+    if (value.contains('breakfast')) {
+      return Icons
+          .free_breakfast_outlined;
+    }
+
+    return Icons
+        .restaurant_menu_rounded;
+  }
+
+  // ============================================================
+  // EMPTY STATE
+  // ============================================================
+
+  Widget _buildEmptyState() {
+    return Container(
+      margin:
+      const EdgeInsets.only(
+        top: 8,
+      ),
+
+      padding:
+      const EdgeInsets.symmetric(
+        horizontal: 25,
+        vertical: 35,
+      ),
+
+      decoration:
+      BoxDecoration(
+        color: cardColor,
+
+        borderRadius:
+        BorderRadius.circular(
+          25,
+        ),
+
+        border: Border.all(
+          color: softBrown,
+        ),
+      ),
+
+      child: Column(
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+
+            decoration:
+            const BoxDecoration(
+              color:
+              Color(0xFFF2E0CC),
+              shape:
+              BoxShape.circle,
+            ),
+
+            child: Icon(
+              Icons
+                  .restaurant_menu_outlined,
+              color: brown,
+              size: 34,
+            ),
+          ),
+
+          const SizedBox(
+            height: 15,
+          ),
+
+          Text(
+            'No categories yet',
+            style: TextStyle(
+              color: brown,
+              fontSize: 17,
+              fontWeight:
+              FontWeight.w900,
+            ),
+          ),
+
+          const SizedBox(
+            height: 5,
+          ),
+
+          Text(
+            'Add your first category above\nto start organizing the menu.',
+            textAlign:
+            TextAlign.center,
+            style: TextStyle(
+              color: lightBrown,
+              fontSize: 10,
+              height: 1.5,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // ERROR
+  // ============================================================
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding:
+        const EdgeInsets.all(30),
+
+        child: Column(
+          mainAxisSize:
+          MainAxisSize.min,
+
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              color: brown,
+              size: 45,
+            ),
+
+            const SizedBox(
+              height: 12,
+            ),
+
+            Text(
+              'Unable to load categories',
+              style: TextStyle(
+                color: brown,
+                fontWeight:
+                FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
