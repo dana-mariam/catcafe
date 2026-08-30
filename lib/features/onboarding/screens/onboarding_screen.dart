@@ -18,21 +18,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<Map<String, String>> _pages = [
     {
-      'image': 'assets/images/firstonboarding.jpg',
+      'image': 'lib/assets/images/firstonboarding.jpg',
       'tag': 'Welcome to Cat Cafe',
       'title': 'Your Cozy Coffee Corner',
       'description':
       'Discover delicious coffee, sweet treats, and cozy moments made for cat lovers.',
     },
     {
-      'image': 'assets/images/secondonboarding.jpg',
+      'image': 'lib/assets/images/secondonbording.jpg',
       'tag': 'Our Menu',
       'title': 'Pick Your Favorites',
       'description':
       'Explore our menu, choose what you love, and build your perfect order.',
     },
     {
-      'image': 'assets/images/thirdonboarding.jpg',
+      'image': 'lib/assets/images/thierdonboarding.jpg',
       'tag': 'Adoption Corner',
       'title': 'Maybe Your New Friend Is Here',
       'description':
