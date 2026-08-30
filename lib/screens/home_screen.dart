@@ -1532,6 +1532,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> toggleFavorite(
       String productId,
+
+
       ) async {
     final user =
         FirebaseAuth.instance.currentUser;
