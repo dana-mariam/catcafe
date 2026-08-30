@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/app_preferences.dart';
 import '../../auth/login/login_screen.dart';
 import '../widgets/onboarding_page.dart';
 
@@ -53,9 +53,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         curve: Curves.easeInOut,
       );
     } else {
-      final prefs = await SharedPreferences.getInstance();
-
-      await prefs.setBool('hasSeenOnboarding', true);
+      await AppPreferences.setOnboardingSeen();
 
       if (!mounted) return;
 
