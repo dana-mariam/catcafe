@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../auth/login/login_screen.dart';
 import '../widgets/onboarding_page.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -55,7 +57,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
       await prefs.setBool('hasSeenOnboarding', true);
 
-      // لاحقًا رح نضيف هون الانتقال للـ Home Screen.
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LoginScreen(),
+        ),
+      );
     }
   }
 
