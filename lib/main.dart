@@ -1,8 +1,11 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'features/onboarding/screens/onboarding_screen.dart';
 import 'firebase_options.dart';
 import 'features/auth/login/login_screen.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,11 +14,25 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  runApp(const CatCafeApp());
+  final prefs = await SharedPreferences.getInstance();
+
+  final hasSeenOnboarding =
+      prefs.getBool('hasSeenOnboarding') ?? false;
+
+  runApp(
+    CatCafeApp(
+      hasSeenOnboarding: hasSeenOnboarding,
+    ),
+  );
 }
 
 class CatCafeApp extends StatelessWidget {
-  const CatCafeApp({super.key});
+  final bool hasSeenOnboarding;
+
+  const CatCafeApp({
+    super.key,
+    required this.hasSeenOnboarding,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +47,9 @@ class CatCafeApp extends StatelessWidget {
         ),
         fontFamily: 'Arial',
       ),
-      home: LoginScreen(),
+      home: hasSeenOnboarding
+          ? LoginScreen()
+          : const OnboardingScreen(),
     );
   }
 }

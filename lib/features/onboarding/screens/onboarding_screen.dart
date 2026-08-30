@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/onboarding_page.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -43,15 +44,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  void _nextPage() {
+  Future<void> _nextPage() async {
     if (_currentPage < _pages.length - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     } else {
-      // مؤقتًا رح نتركها هون.
-      // لاحقًا رح نربطها بالـ Home Screen.
+      final prefs = await SharedPreferences.getInstance();
+
+      await prefs.setBool('hasSeenOnboarding', true);
+
+      // لاحقًا رح نضيف هون الانتقال للـ Home Screen.
     }
   }
 
