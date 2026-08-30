@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/order_service.dart';
+
+import '../features/cart/services/cart_service.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
   final String productId;
@@ -18,8 +19,10 @@ class ProductDetailsScreen extends StatefulWidget {
 
 class _ProductDetailsScreenState
     extends State<ProductDetailsScreen> {
+  final CartService _cartService = CartService();
+
   bool isFavorite = false;
-  bool isOrdering = false;
+  bool isAddingToCart = false;
 
   static const Color backgroundColor =
   Color(0xFFF8EBD7);
@@ -58,15 +61,14 @@ class _ProductDetailsScreenState
     final num quantity =
         (widget.product['quantity'] as num?) ?? 0;
 
-    final bool outOfStock =
-        quantity <= 0;
+    final bool outOfStock = quantity <= 0;
 
     return Scaffold(
       backgroundColor: backgroundColor,
 
-      // ========================================================
-      // BOTTOM ORDER BAR
-      // ========================================================
+      // ============================================================
+      // BOTTOM ADD TO CART BAR
+      // ============================================================
 
       bottomNavigationBar: SafeArea(
         child: Container(
@@ -76,10 +78,8 @@ class _ProductDetailsScreenState
             18,
             14,
           ),
-
           decoration: BoxDecoration(
             color: cardColor,
-
             boxShadow: [
               BoxShadow(
                 color: Colors.brown.withOpacity(0.10),
@@ -88,7 +88,6 @@ class _ProductDetailsScreenState
               ),
             ],
           ),
-
           child: Row(
             children: [
               Expanded(
@@ -96,10 +95,9 @@ class _ProductDetailsScreenState
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment:
                   CrossAxisAlignment.start,
-
                   children: [
                     const Text(
-                      'TOTAL',
+                      'PRICE',
                       style: TextStyle(
                         color: lightBrown,
                         fontSize: 8,
@@ -107,9 +105,7 @@ class _ProductDetailsScreenState
                         letterSpacing: 1,
                       ),
                     ),
-
                     const SizedBox(height: 2),
-
                     Text(
                       '\$${price.toStringAsFixed(2)}',
                       style: const TextStyle(
@@ -128,24 +124,18 @@ class _ProductDetailsScreenState
                 flex: 2,
                 child: SizedBox(
                   height: 54,
-
                   child: ElevatedButton(
                     onPressed:
-                    outOfStock || isOrdering
+                    outOfStock || isAddingToCart
                         ? null
-                        : placeOrder,
+                        : addToCart,
 
-                    style:
-                    ElevatedButton.styleFrom(
+                    style: ElevatedButton.styleFrom(
                       backgroundColor: brown,
-
                       disabledBackgroundColor:
                       const Color(0xFFD6C8B8),
-
                       foregroundColor: Colors.white,
-
                       elevation: 0,
-
                       shape:
                       RoundedRectangleBorder(
                         borderRadius:
@@ -153,7 +143,7 @@ class _ProductDetailsScreenState
                       ),
                     ),
 
-                    child: isOrdering
+                    child: isAddingToCart
                         ? const Row(
                       mainAxisAlignment:
                       MainAxisAlignment.center,
@@ -169,7 +159,7 @@ class _ProductDetailsScreenState
                         ),
                         SizedBox(width: 9),
                         Text(
-                          'Placing order...',
+                          'ADDING...',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight:
@@ -190,15 +180,12 @@ class _ProductDetailsScreenState
                               .shopping_bag_outlined,
                           size: 19,
                         ),
-
                         const SizedBox(width: 8),
-
                         Text(
                           outOfStock
                               ? 'OUT OF STOCK'
-                              : 'ORDER NOW',
-                          style:
-                          const TextStyle(
+                              : 'ADD TO CART',
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight:
                             FontWeight.w900,
@@ -215,37 +202,40 @@ class _ProductDetailsScreenState
         ),
       ),
 
+      // ============================================================
+      // BODY
+      // ============================================================
+
       body: SafeArea(
         child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-
+          physics:
+          const BouncingScrollPhysics(),
           slivers: [
-            // ==================================================
+            // ========================================================
             // APP BAR
-            // ==================================================
+            // ========================================================
 
             SliverAppBar(
               backgroundColor: backgroundColor,
               elevation: 0,
               pinned: true,
-
               expandedHeight: 0,
 
               leading: Padding(
                 padding: const EdgeInsets.all(8),
                 child: Container(
-                  decoration: const BoxDecoration(
+                  decoration:
+                  const BoxDecoration(
                     color: cardColor,
                     shape: BoxShape.circle,
                   ),
-
                   child: IconButton(
                     onPressed: () {
                       Navigator.pop(context);
                     },
-
                     icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
+                      Icons
+                          .arrow_back_ios_new_rounded,
                       color: brown,
                       size: 17,
                     ),
@@ -267,15 +257,15 @@ class _ProductDetailsScreenState
               actions: [
                 Padding(
                   padding:
-                  const EdgeInsets.only(right: 8),
-
+                  const EdgeInsets.only(
+                    right: 8,
+                  ),
                   child: Container(
                     decoration:
                     const BoxDecoration(
                       color: cardColor,
                       shape: BoxShape.circle,
                     ),
-
                     child: IconButton(
                       onPressed: () {
                         setState(() {
@@ -283,15 +273,12 @@ class _ProductDetailsScreenState
                           !isFavorite;
                         });
                       },
-
                       icon: Icon(
                         isFavorite
                             ? Icons.favorite_rounded
                             : Icons
                             .favorite_border_rounded,
-
                         color: brown,
-
                         size: 20,
                       ),
                     ),
@@ -300,9 +287,9 @@ class _ProductDetailsScreenState
               ],
             ),
 
-            // ==================================================
+            // ========================================================
             // CONTENT
-            // ==================================================
+            // ========================================================
 
             SliverToBoxAdapter(
               child: Padding(
@@ -313,14 +300,12 @@ class _ProductDetailsScreenState
                   18,
                   30,
                 ),
-
                 child: Column(
                   crossAxisAlignment:
                   CrossAxisAlignment.start,
-
                   children: [
                     // ==================================================
-                    // IMAGE
+                    // PRODUCT IMAGE
                     // ==================================================
 
                     Stack(
@@ -328,25 +313,19 @@ class _ProductDetailsScreenState
                         Container(
                           width: double.infinity,
                           height: 315,
-
                           decoration:
                           BoxDecoration(
                             color: cardColor,
-
                             borderRadius:
-                            BorderRadius.circular(
-                              30,
-                            ),
-
+                            BorderRadius
+                                .circular(30),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.brown
                                     .withOpacity(
                                   0.08,
                                 ),
-
                                 blurRadius: 18,
-
                                 offset:
                                 const Offset(
                                   0,
@@ -355,26 +334,22 @@ class _ProductDetailsScreenState
                               ),
                             ],
                           ),
-
                           child: ClipRRect(
                             borderRadius:
-                            BorderRadius.circular(
-                              30,
-                            ),
-
-                            child: imageUrl.isNotEmpty
+                            BorderRadius
+                                .circular(30),
+                            child:
+                            imageUrl.isNotEmpty
                                 ? Image.network(
                               imageUrl,
                               fit: BoxFit.cover,
-
                               errorBuilder:
                                   (
                                   _,
                                   __,
                                   ___,
                                   ) {
-                                return
-                                  _imagePlaceholder();
+                                return _imagePlaceholder();
                               },
                             )
                                 : _imagePlaceholder(),
@@ -386,7 +361,6 @@ class _ProductDetailsScreenState
                           Positioned(
                             left: 14,
                             top: 14,
-
                             child: Container(
                               padding:
                               const EdgeInsets
@@ -394,26 +368,21 @@ class _ProductDetailsScreenState
                                 horizontal: 12,
                                 vertical: 7,
                               ),
-
                               decoration:
                               BoxDecoration(
                                 color: Colors.black
                                     .withOpacity(
                                   0.68,
                                 ),
-
                                 borderRadius:
                                 BorderRadius
                                     .circular(
                                   20,
                                 ),
                               ),
-
-                              child:
-                              const Row(
+                              child: const Row(
                                 mainAxisSize:
                                 MainAxisSize.min,
-
                                 children: [
                                   Icon(
                                     Icons
@@ -422,18 +391,20 @@ class _ProductDetailsScreenState
                                     Colors.white,
                                     size: 13,
                                   ),
-
-                                  SizedBox(width: 5),
-
+                                  SizedBox(
+                                    width: 5,
+                                  ),
                                   Text(
                                     'OUT OF STOCK',
                                     style:
                                     TextStyle(
                                       color:
-                                      Colors.white,
+                                      Colors
+                                          .white,
                                       fontSize: 9,
                                       fontWeight:
-                                      FontWeight.w900,
+                                      FontWeight
+                                          .w900,
                                       letterSpacing:
                                       0.5,
                                     ),
@@ -448,7 +419,6 @@ class _ProductDetailsScreenState
                           Positioned(
                             left: 14,
                             bottom: 14,
-
                             child: Container(
                               padding:
                               const EdgeInsets
@@ -456,30 +426,27 @@ class _ProductDetailsScreenState
                                 horizontal: 11,
                                 vertical: 7,
                               ),
-
                               decoration:
                               BoxDecoration(
                                 color: Colors.white
                                     .withOpacity(
                                   0.92,
                                 ),
-
                                 borderRadius:
                                 BorderRadius
                                     .circular(
                                   15,
                                 ),
                               ),
-
                               child: Text(
                                 categoryName,
-
                                 style:
                                 const TextStyle(
                                   color: brown,
                                   fontSize: 9,
                                   fontWeight:
-                                  FontWeight.w800,
+                                  FontWeight
+                                      .w800,
                                 ),
                               ),
                             ),
@@ -496,32 +463,29 @@ class _ProductDetailsScreenState
                     Row(
                       crossAxisAlignment:
                       CrossAxisAlignment.start,
-
                       children: [
                         Expanded(
                           child: Column(
                             crossAxisAlignment:
                             CrossAxisAlignment
                                 .start,
-
                             children: [
                               Text(
                                 name,
-
                                 style:
                                 const TextStyle(
                                   color: brown,
                                   fontSize: 28,
                                   fontWeight:
-                                  FontWeight.w900,
-                                  fontFamily: 'serif',
+                                  FontWeight
+                                      .w900,
+                                  fontFamily:
+                                  'serif',
                                 ),
                               ),
-
                               const SizedBox(
                                 height: 6,
                               ),
-
                               Text(
                                 categoryName
                                     .isNotEmpty
@@ -529,12 +493,14 @@ class _ProductDetailsScreenState
                                     : 'CAT CAFE SPECIAL',
                                 style:
                                 const TextStyle(
-                                  color: lightBrown,
+                                  color:
+                                  lightBrown,
                                   fontSize: 8,
                                   letterSpacing:
                                   1.5,
                                   fontWeight:
-                                  FontWeight.w800,
+                                  FontWeight
+                                      .w800,
                                 ),
                               ),
                             ],
@@ -550,29 +516,27 @@ class _ProductDetailsScreenState
                             horizontal: 13,
                             vertical: 9,
                           ),
-
                           decoration:
                           BoxDecoration(
                             color:
                             const Color(
                               0xFFF1DFC9,
                             ),
-
                             borderRadius:
-                            BorderRadius.circular(
+                            BorderRadius
+                                .circular(
                               16,
                             ),
                           ),
-
                           child: Text(
                             '\$${price.toStringAsFixed(2)}',
-
                             style:
                             const TextStyle(
                               color: brown,
                               fontSize: 17,
                               fontWeight:
-                              FontWeight.w900,
+                              FontWeight
+                                  .w900,
                             ),
                           ),
                         ),
@@ -586,19 +550,18 @@ class _ProductDetailsScreenState
                     // ==================================================
 
                     _sectionCard(
-                      icon:
-                      Icons.description_outlined,
+                      icon: Icons
+                          .description_outlined,
                       title:
                       'ABOUT THIS PRODUCT',
-
                       child: Text(
                         description.isEmpty
                             ? 'A delicious choice from our Cat Cafe menu, prepared with care for your cozy café moment.'
                             : description,
-
                         style:
                         const TextStyle(
-                          color: Color(0xFF795548),
+                          color:
+                          Color(0xFF795548),
                           fontSize: 11,
                           height: 1.55,
                         ),
@@ -608,20 +571,18 @@ class _ProductDetailsScreenState
                     const SizedBox(height: 13),
 
                     // ==================================================
-                    // PRODUCT INFO
+                    // PRODUCT INFORMATION
                     // ==================================================
 
                     _sectionCard(
-                      icon:
-                      Icons.auto_awesome_outlined,
+                      icon: Icons
+                          .auto_awesome_outlined,
                       title:
                       'PRODUCT INFORMATION',
-
                       child: Row(
                         children: [
                           Expanded(
-                            child:
-                            _infoBox(
+                            child: _infoBox(
                               Icons
                                   .inventory_2_outlined,
                               'Available',
@@ -634,11 +595,10 @@ class _ProductDetailsScreenState
                           const SizedBox(width: 9),
 
                           Expanded(
-                            child:
-                            _infoBox(
+                            child: _infoBox(
                               Icons
                                   .shopping_bag_outlined,
-                              'Order',
+                              'Cart',
                               outOfStock
                                   ? 'Unavailable'
                                   : 'Available',
@@ -656,41 +616,35 @@ class _ProductDetailsScreenState
 
                     Container(
                       width: double.infinity,
-
                       padding:
                       const EdgeInsets.all(
                         17,
                       ),
-
                       decoration:
                       BoxDecoration(
                         color:
                         const Color(
                           0xFFF0DDC8,
                         ),
-
                         borderRadius:
                         BorderRadius.circular(
                           22,
                         ),
                       ),
-
                       child: Row(
                         crossAxisAlignment:
-                        CrossAxisAlignment.start,
-
+                        CrossAxisAlignment
+                            .start,
                         children: [
                           Container(
                             width: 38,
                             height: 38,
-
                             decoration:
                             const BoxDecoration(
                               color: cardColor,
                               shape:
                               BoxShape.circle,
                             ),
-
                             child: const Icon(
                               Icons
                                   .local_cafe_rounded,
@@ -699,14 +653,15 @@ class _ProductDetailsScreenState
                             ),
                           ),
 
-                          const SizedBox(width: 11),
+                          const SizedBox(
+                            width: 11,
+                          ),
 
                           const Expanded(
                             child: Column(
                               crossAxisAlignment:
                               CrossAxisAlignment
                                   .start,
-
                               children: [
                                 Text(
                                   'A cozy little choice',
@@ -715,14 +670,15 @@ class _ProductDetailsScreenState
                                     color: brown,
                                     fontSize: 12,
                                     fontWeight:
-                                    FontWeight.w900,
+                                    FontWeight
+                                        .w900,
                                   ),
                                 ),
-
-                                SizedBox(height: 4),
-
+                                SizedBox(
+                                  height: 4,
+                                ),
                                 Text(
-                                  'Pick your favorite, place your order, and enjoy your Cat Cafe moment.',
+                                  'Add your favorite to the cart and enjoy your Cat Cafe moment.',
                                   style:
                                   TextStyle(
                                     color:
@@ -738,7 +694,6 @@ class _ProductDetailsScreenState
                       ),
                     ),
 
-                    // Space for bottom bar
                     const SizedBox(height: 10),
                   ],
                 ),
@@ -761,37 +716,29 @@ class _ProductDetailsScreenState
   }) {
     return Container(
       width: double.infinity,
-
       padding: const EdgeInsets.all(18),
-
       decoration: BoxDecoration(
         color: cardColor,
-
         borderRadius:
         BorderRadius.circular(23),
-
         border: Border.all(
           color: softBrown,
         ),
       ),
-
       child: Column(
         crossAxisAlignment:
         CrossAxisAlignment.start,
-
         children: [
           Row(
             children: [
               Container(
                 width: 34,
                 height: 34,
-
                 decoration:
                 const BoxDecoration(
                   color: Color(0xFFF2E0CC),
                   shape: BoxShape.circle,
                 ),
-
                 child: Icon(
                   icon,
                   color: brown,
@@ -806,7 +753,8 @@ class _ProductDetailsScreenState
                 style: const TextStyle(
                   color: brown,
                   fontSize: 11,
-                  fontWeight: FontWeight.w900,
+                  fontWeight:
+                  FontWeight.w900,
                   letterSpacing: 0.6,
                 ),
               ),
@@ -832,18 +780,14 @@ class _ProductDetailsScreenState
       ) {
     return Container(
       padding: const EdgeInsets.all(13),
-
       decoration: BoxDecoration(
         color: backgroundColor,
-
         borderRadius:
         BorderRadius.circular(17),
       ),
-
       child: Column(
         crossAxisAlignment:
         CrossAxisAlignment.start,
-
         children: [
           Icon(
             icon,
@@ -868,7 +812,6 @@ class _ProductDetailsScreenState
             maxLines: 1,
             overflow:
             TextOverflow.ellipsis,
-
             style: const TextStyle(
               color: brown,
               fontSize: 10,
@@ -888,7 +831,6 @@ class _ProductDetailsScreenState
   Widget _imagePlaceholder() {
     return Container(
       color: const Color(0xFFF0DFCC),
-
       child: const Center(
         child: Icon(
           Icons.local_cafe_rounded,
@@ -900,55 +842,78 @@ class _ProductDetailsScreenState
   }
 
   // ============================================================
-  // PLACE ORDER
+  // ADD TO CART
   // ============================================================
 
-  Future<void> placeOrder() async {
-    if (isOrdering) {
+  Future<void> addToCart() async {
+    if (isAddingToCart) {
       return;
     }
 
     setState(() {
-      isOrdering = true;
+      isAddingToCart = true;
     });
 
     try {
-      await OrderService.createOrder(
+      final bool success =
+      await _cartService.addToCart(
         productId: widget.productId,
+        product: widget.product,
       );
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Order placed successfully! ☕',
-          ),
-        ),
-      );
-
-      Navigator.pop(context);
+      if (success) {
+        _showMessage(
+          context,
+          'Added to your cart ☕',
+        );
+      } else {
+        _showMessage(
+          context,
+          'This product is out of stock.',
+        );
+      }
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceFirst(
-              'Exception: ',
-              '',
-            ),
-          ),
+      _showMessage(
+        context,
+        e.toString().replaceFirst(
+          'Exception: ',
+          '',
         ),
       );
     } finally {
       if (mounted) {
         setState(() {
-          isOrdering = false;
+          isAddingToCart = false;
         });
       }
     }
+  }
+
+  // ============================================================
+  // MESSAGE
+  // ============================================================
+
+  void _showMessage(
+      BuildContext context,
+      String message,
+      ) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior:
+        SnackBarBehavior.floating,
+        backgroundColor: brown,
+        shape:
+        RoundedRectangleBorder(
+          borderRadius:
+          BorderRadius.circular(14),
+        ),
+      ),
+    );
   }
 }
