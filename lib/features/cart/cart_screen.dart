@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../checkout/checkout_address_screen.dart';
 import 'models/cart_item_model.dart';
 import 'services/cart_service.dart';
 
@@ -509,10 +510,12 @@ class CartScreen extends StatelessWidget {
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: () {
-                _showMessage(
+              onPressed: () async {
+                await Navigator.push(
                   context,
-                  'Checkout will be available soon ☕',
+                  MaterialPageRoute(
+                    builder: (_) => const CheckoutAddressScreen(),
+                  ),
                 );
               },
               style: ElevatedButton.styleFrom(
