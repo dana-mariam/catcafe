@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../features/profile/profile_screen.dart';
 import '../screens/home_screen.dart';
+import '../features/cart/cart_screen.dart';
+import '../features/adoption/adoption_screen.dart';
+
 import 'favorites_screen.dart';
 import 'my_orders_screen.dart';
-import '../features/cart/cart_screen.dart';
 
 class UserMainScreen extends StatefulWidget {
   const UserMainScreen({super.key});
@@ -20,6 +22,7 @@ class _UserMainScreenState extends State<UserMainScreen> {
     const HomeScreen(),
     const FavoritesScreen(),
     CartScreen(),
+    const AdoptionScreen(),
     const MyOrdersScreen(),
     const ProfileScreen(),
   ];
@@ -64,6 +67,13 @@ class _UserMainScreenState extends State<UserMainScreen> {
             icon: Icon(Icons.shopping_bag_outlined),
             selectedIcon: Icon(Icons.shopping_bag),
             label: 'Cart',
+          ),
+
+          // ADOPT
+          NavigationDestination(
+            icon: Icon(Icons.pets_outlined),
+            selectedIcon: Icon(Icons.pets),
+            label: 'Adopt',
           ),
 
           // MY ORDERS
