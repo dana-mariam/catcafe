@@ -74,9 +74,14 @@ flutter:
 flutter_native_splash:
   color: "#F7EBD8"
   image: lib/assets/images/6da47b5d-41f3-4c9f-b533-826ae1ae4790.png
+
   android: true
   ios: true
   web: false
+
+  android_12:
+    color: "#F7EBD8"
+    image: lib/assets/images/6da47b5d-41f3-4c9f-b533-826ae1ae4790.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
