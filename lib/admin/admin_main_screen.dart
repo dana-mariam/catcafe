@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../features/profile/profile_screen.dart';
-import '../screens/home_screen.dart';
+import 'admin_dashboard_screen.dart';
 import 'add_product_screen.dart';
 import 'categories_screen.dart';
 import 'admin_orders_screen.dart';
-
 
 class AdminMainScreen extends StatefulWidget {
   const AdminMainScreen({super.key});
@@ -20,7 +19,7 @@ class _AdminMainScreenState
   int currentIndex = 0;
 
   final List<Widget> screens = const [
-    HomeScreen(),
+    AdminDashboardScreen(),
     AddProductScreen(),
     CategoriesScreen(),
     AdminOrdersScreen(),
@@ -45,9 +44,9 @@ class _AdminMainScreenState
         indicatorColor: const Color(0xFFF5E9D7),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Dashboard',
           ),
           NavigationDestination(
             icon: Icon(Icons.add_box_outlined),
