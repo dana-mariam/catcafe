@@ -5,8 +5,11 @@ import '../cart/models/cart_item_model.dart';
 import 'checkout_model.dart';
 
 class CheckoutService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
+
+  final FirebaseAuth _auth =
+      FirebaseAuth.instance;
 
   // ============================================================
   // CHECKOUT
@@ -18,17 +21,31 @@ class CheckoutService {
   }) async {
     final user = _auth.currentUser;
 
+    // ============================================================
+    // VALIDATION
+    // ============================================================
+
     if (user == null) {
-      throw Exception('Please log in before placing an order.');
+      throw Exception(
+        'Please log in before placing an order.',
+      );
     }
 
     if (address.trim().isEmpty) {
-      throw Exception('Please enter your delivery address.');
+      throw Exception(
+        'Please enter your delivery address.',
+      );
     }
 
     if (cartItems.isEmpty) {
-      throw Exception('Your cart is empty.');
+      throw Exception(
+        'Your cart is empty.',
+      );
     }
+
+    // ============================================================
+    // CREATE ORDER ITEMS
+    // ============================================================
 
     final orderItems = cartItems
         .map(
@@ -42,12 +59,25 @@ class CheckoutService {
     )
         .toList();
 
+    // ============================================================
+    // CALCULATE TOTAL
+    // ============================================================
+
     final totalAmount = orderItems.fold<double>(
       0,
           (sum, item) => sum + item.totalPrice,
     );
 
-    final orderReference = _firestore.collection('orders').doc();
+    // ============================================================
+    // CREATE ORDER REFERENCE
+    // ============================================================
+
+    final orderReference =
+    _firestore.collection('orders').doc();
+
+    // ============================================================
+    // CREATE ORDER MODEL
+    // ============================================================
 
     final order = CheckoutOrderModel(
       orderId: orderReference.id,
@@ -59,113 +89,155 @@ class CheckoutService {
       status: 'pending',
     );
 
-    // ==========================================================
-    // STEP 1 + STEP 2
-    // Create Order + Update Stock
-    // ==========================================================
-
-    await _firestore.runTransaction((transaction) async {
-      final productSnapshots = <DocumentSnapshot<Map<String, dynamic>>>[];
-
-      for (final item in cartItems) {
-        final productReference = _firestore
-            .collection('products')
-            .doc(item.productId);
-
-        final productSnapshot = await transaction.get(
-          productReference,
-        );
-
-        if (!productSnapshot.exists) {
-          throw Exception(
-            'Product "${item.name}" is no longer available.',
-          );
-        }
-
-        productSnapshots.add(productSnapshot);
-      }
-
-      // --------------------------------------------------------
-      // Check stock first
-      // --------------------------------------------------------
-
-      for (int i = 0; i < cartItems.length; i++) {
-        final item = cartItems[i];
-
-        final productData =
-        productSnapshots[i].data();
-
-        if (productData == null) {
-          throw Exception(
-            'Could not load product "${item.name}".',
-          );
-        }
-
-        final currentStock =
-        (productData['quantity'] ?? 0) as int;
-
-        if (currentStock < item.quantity) {
-          throw Exception(
-            'Not enough stock for "${item.name}".',
-          );
-        }
-      }
-
-      // --------------------------------------------------------
-      // STEP 1: Create Order
-      // --------------------------------------------------------
-
-      transaction.set(
-        orderReference,
-        order.toMap(),
-      );
-
-      // --------------------------------------------------------
-      // STEP 2: Decrease Product Stock
-      // --------------------------------------------------------
-
-      for (int i = 0; i < cartItems.length; i++) {
-        final item = cartItems[i];
-
-        final productReference = _firestore
-            .collection('products')
-            .doc(item.productId);
-
-        final productData =
-        productSnapshots[i].data()!;
-
-        final currentStock =
-        (productData['quantity'] ?? 0) as int;
-
-        final newStock =
-            currentStock - item.quantity;
-
-        transaction.update(
-          productReference,
-          {
-            'quantity': newStock,
-          },
-        );
-      }
-    });
-
     // ============================================================
-    // STEP 3: CLEAR CART
+    // CHECKOUT TRANSACTION
+    //
+    // STEP 1: Create Order
+    // STEP 2: Decrease Product Stock
+    // STEP 3: Clear Cart
+    //
+    // All operations happen inside one transaction.
     // ============================================================
 
-    final cartSnapshot = await _firestore
-        .collection('users')
-        .doc(user.uid)
-        .collection('cart')
-        .get();
+    await _firestore.runTransaction(
+          (transaction) async {
+        // ========================================================
+        // GET CART ITEMS
+        // ========================================================
 
-    final batch = _firestore.batch();
+        final cartCollection = _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('cart');
 
-    for (final document in cartSnapshot.docs) {
-      batch.delete(document.reference);
-    }
+        final cartDocuments =
+        <DocumentSnapshot<Map<String, dynamic>>>[];
 
-    await batch.commit();
+        for (final item in cartItems) {
+          final cartReference =
+          cartCollection.doc(item.productId);
+
+          final cartDocument = await transaction.get(
+            cartReference,
+          );
+
+          if (!cartDocument.exists) {
+            throw Exception(
+              'Cart item "${item.name}" was not found.',
+            );
+          }
+
+          cartDocuments.add(cartDocument);
+        }
+
+        // ========================================================
+        // GET PRODUCTS
+        // ========================================================
+
+        final productSnapshots =
+        <DocumentSnapshot<Map<String, dynamic>>>[];
+
+        for (final item in cartItems) {
+          final productReference = _firestore
+              .collection('products')
+              .doc(item.productId);
+
+          final productSnapshot =
+          await transaction.get(
+            productReference,
+          );
+
+          if (!productSnapshot.exists) {
+            throw Exception(
+              'Product "${item.name}" is no longer available.',
+            );
+          }
+
+          productSnapshots.add(productSnapshot);
+        }
+
+        // ========================================================
+        // CHECK STOCK
+        // ========================================================
+
+        for (int i = 0; i < cartItems.length; i++) {
+          final item = cartItems[i];
+
+          final productData =
+          productSnapshots[i].data();
+
+          if (productData == null) {
+            throw Exception(
+              'Could not load product "${item.name}".',
+            );
+          }
+
+          final currentStock =
+              (productData['quantity'] as num?)
+                  ?.toInt() ??
+                  0;
+
+          if (currentStock < item.quantity) {
+            throw Exception(
+              'Not enough stock for "${item.name}".',
+            );
+          }
+        }
+
+        // ========================================================
+        // STEP 1: CREATE ORDER
+        // ========================================================
+
+        transaction.set(
+          orderReference,
+          order.toMap(),
+        );
+
+        // ========================================================
+        // STEP 2: DECREASE PRODUCT STOCK
+        // ========================================================
+
+        for (int i = 0; i < cartItems.length; i++) {
+          final item = cartItems[i];
+
+          final productReference = _firestore
+              .collection('products')
+              .doc(item.productId);
+
+          final productData =
+          productSnapshots[i].data()!;
+
+          final currentStock =
+              (productData['quantity'] as num?)
+                  ?.toInt() ??
+                  0;
+
+          final newStock =
+              currentStock - item.quantity;
+
+          transaction.update(
+            productReference,
+            {
+              'quantity': newStock,
+            },
+          );
+        }
+
+        // ========================================================
+        // STEP 3: CLEAR CART
+        // ========================================================
+
+        for (final document in cartDocuments) {
+          transaction.delete(
+            document.reference,
+          );
+        }
+      },
+    );
+
+    // ============================================================
+    // CHECKOUT SUCCESS
+    // ============================================================
 
     return orderReference.id;
   }

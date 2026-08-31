@@ -2,6 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../cart/models/cart_item_model.dart';
+import '../cart/services/cart_service.dart';
+import 'checkout_service.dart';
+
 class CheckoutAddressScreen extends StatefulWidget {
   const CheckoutAddressScreen({super.key});
 
@@ -16,6 +20,9 @@ class _CheckoutAddressScreenState
 
   final TextEditingController _addressController =
   TextEditingController();
+
+  final CartService _cartService = CartService();
+  final CheckoutService _checkoutService = CheckoutService();
 
   bool _isSaving = false;
 
@@ -57,19 +64,22 @@ class _CheckoutAddressScreenState
       final savedAddress = data?['address'];
 
       if (savedAddress is String && savedAddress.isNotEmpty) {
-        _addressController.text = savedAddress;
+        if (!mounted) return;
+
+        setState(() {
+          _addressController.text = savedAddress;
+        });
       }
     } catch (_) {
-      // We don't show an error here because the user can
-      // still enter the address manually.
+      // User can still enter the address manually.
     }
   }
 
   // ============================================================
-  // SAVE ADDRESS
+  // CHECKOUT
   // ============================================================
 
-  Future<void> _saveAddressAndContinue() async {
+  Future<void> _saveAddressAndCheckout() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -90,6 +100,10 @@ class _CheckoutAddressScreenState
     try {
       final address = _addressController.text.trim();
 
+      // ========================================================
+      // STEP 1: SAVE ADDRESS
+      // ========================================================
+
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -100,20 +114,66 @@ class _CheckoutAddressScreenState
         SetOptions(merge: true),
       );
 
+      // ========================================================
+      // GET CURRENT CART
+      // ========================================================
+
+      final cartItems =
+      await _cartService.getCartItems().first;
+
+      if (cartItems.isEmpty) {
+        throw Exception(
+          'Your cart is empty.',
+        );
+      }
+
+      // ========================================================
+      // STEP 2 + STEP 3
+      //
+      // CheckoutService will:
+      //
+      // 1. Create the order
+      // 2. Decrease product stock
+      // 3. Clear the cart
+      //
+      // ========================================================
+
+      await _checkoutService.checkout(
+        address: address,
+        cartItems: cartItems,
+      );
+
       if (!mounted) return;
 
-      // For now we return the saved address.
-      // The actual Checkout process will be connected next.
-      Navigator.pop(
-        context,
-        address,
+      // ========================================================
+      // SUCCESS
+      // ========================================================
+
+      _showMessage(
+        'Order placed successfully! ☕',
       );
+
+      await Future.delayed(
+        const Duration(milliseconds: 700),
+      );
+
+      if (!mounted) return;
+
+      // Go back to the Cart screen.
+      //
+      // The cart is already cleared by CheckoutService.
+      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
 
-      _showMessage(
-        'Could not save your address. Please try again.',
+      String message = e.toString();
+
+      message = message.replaceFirst(
+        'Exception: ',
+        '',
       );
+
+      _showMessage(message);
     } finally {
       if (mounted) {
         setState(() {
@@ -144,7 +204,9 @@ class _CheckoutAddressScreenState
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              onPressed: () {
+              onPressed: _isSaving
+                  ? null
+                  : () {
                 Navigator.pop(context);
               },
               icon: const Icon(
@@ -168,9 +230,7 @@ class _CheckoutAddressScreenState
                 letterSpacing: 2,
               ),
             ),
-
             SizedBox(height: 2),
-
             Text(
               'Delivery Details',
               style: TextStyle(
@@ -198,6 +258,7 @@ class _CheckoutAddressScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+
                 // ==================================================
                 // HEADER
                 // ==================================================
@@ -236,13 +297,11 @@ class _CheckoutAddressScreenState
                               'Where should we deliver?',
                               style: TextStyle(
                                 color: brown,
-                                fontSize: 13,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
-
                             SizedBox(height: 4),
-
                             Text(
                               'Enter your delivery address before placing your order.',
                               style: TextStyle(
@@ -300,15 +359,15 @@ class _CheckoutAddressScreenState
                       fontWeight: FontWeight.w600,
                     ),
 
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       hintText:
                       'Example: Jenin, Al-Jawhara Street, Building 12',
-                      hintStyle: const TextStyle(
+                      hintStyle: TextStyle(
                         color: Color(0xFFB99C88),
                         fontSize: 11,
                       ),
 
-                      prefixIcon: const Padding(
+                      prefixIcon: Padding(
                         padding: EdgeInsets.only(
                           left: 14,
                           right: 8,
@@ -322,14 +381,14 @@ class _CheckoutAddressScreenState
                       ),
 
                       prefixIconConstraints:
-                      const BoxConstraints(
+                      BoxConstraints(
                         minWidth: 45,
                       ),
 
                       border: InputBorder.none,
 
                       contentPadding:
-                      const EdgeInsets.all(16),
+                      EdgeInsets.all(16),
                     ),
 
                     validator: (value) {
@@ -392,7 +451,7 @@ class _CheckoutAddressScreenState
                 const SizedBox(height: 28),
 
                 // ==================================================
-                // CONTINUE BUTTON
+                // CONTINUE TO CHECKOUT
                 // ==================================================
 
                 SizedBox(
@@ -401,18 +460,20 @@ class _CheckoutAddressScreenState
                   child: ElevatedButton(
                     onPressed: _isSaving
                         ? null
-                        : _saveAddressAndContinue,
+                        : _saveAddressAndCheckout,
+
                     style: ElevatedButton.styleFrom(
                       backgroundColor: brown,
-                      disabledBackgroundColor:
-                      lightBrown,
+                      disabledBackgroundColor: lightBrown,
                       foregroundColor: Colors.white,
                       elevation: 0,
+
                       shape: RoundedRectangleBorder(
                         borderRadius:
                         BorderRadius.circular(18),
                       ),
                     ),
+
                     child: _isSaving
                         ? const SizedBox(
                       width: 21,
@@ -471,6 +532,10 @@ class _CheckoutAddressScreenState
       ),
     );
   }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
 
   @override
   void dispose() {
