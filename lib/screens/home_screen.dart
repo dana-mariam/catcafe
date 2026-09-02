@@ -3,10 +3,22 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../admin/edit_product_screen.dart';
+import '../core/theme/app_colors.dart';
+import '../core/theme/app_radius.dart';
+import '../core/theme/app_shadows.dart';
+import '../core/theme/app_text_styles.dart';
+import '../features/cart/services/cart_service.dart';
 import '../user/product_details_screen.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_text_field.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/product_card.dart';
+import '../widgets/ui_kit.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.onOpenProfile});
+
+  final VoidCallback? onOpenProfile;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -14,15 +26,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String selectedCategoryId = 'all';
-
   String userRole = 'user';
   bool isLoadingRole = true;
-
-  final Color backgroundColor = const Color(0xFFF8EBD7);
-  final Color cardColor = const Color(0xFFFFFCF6);
-  final Color brown = const Color(0xFF713D27);
-  final Color lightBrown = const Color(0xFF9A6D58);
-  final Color softBrown = const Color(0xFFEAD5BF);
+  String searchQuery = '';
+  final TextEditingController searchController = TextEditingController();
+  final CartService _cartService = CartService();
 
   @override
   void initState() {
@@ -30,17 +38,17 @@ class _HomeScreenState extends State<HomeScreen> {
     loadUserRole();
   }
 
-  // ============================================================
-  // USER ROLE
-  // ============================================================
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> loadUserRole() async {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      setState(() {
-        isLoadingRole = false;
-      });
+      setState(() => isLoadingRole = false);
       return;
     }
 
@@ -50,17 +58,14 @@ class _HomeScreenState extends State<HomeScreen> {
           .doc(user.uid)
           .get();
 
-      final data = doc.data();
-
       if (!mounted) return;
 
       setState(() {
-        userRole = data?['role'] ?? 'user';
+        userRole = doc.data()?['role'] ?? 'user';
         isLoadingRole = false;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
-
       setState(() {
         userRole = 'user';
         isLoadingRole = false;
@@ -70,56 +75,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool get isAdmin => userRole == 'admin';
 
-  // ============================================================
-  // DELETE PRODUCT
-  // ============================================================
-
-  Future<void> deleteProduct(
-      BuildContext context,
-      String productId,
-      ) async {
+  Future<void> deleteProduct(BuildContext context, String productId) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: cardColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          title: Text(
-            'Delete Product?',
-            style: TextStyle(
-              color: brown,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.extraLarge),
+          title: Text('Delete product?', style: AppTextStyles.section),
           content: Text(
             'This product will be removed from the menu.',
-            style: TextStyle(
-              color: lightBrown,
-            ),
+            style: AppTextStyles.secondary,
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context, false);
-              },
-              child: Text(
-                'Cancel',
-                style: TextStyle(
-                  color: brown,
-                ),
-              ),
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.pop(context, true);
-              },
+              onPressed: () => Navigator.pop(context, true),
               child: const Text(
                 'Delete',
-                style: TextStyle(
-                  color: Colors.red,
-                ),
+                style: TextStyle(color: AppColors.error),
               ),
             ),
           ],
@@ -129,283 +106,182 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (shouldDelete != true) return;
 
-    await FirebaseFirestore.instance
-        .collection('products')
-        .doc(productId)
-        .delete();
+    await FirebaseFirestore.instance.collection('products').doc(productId).delete();
 
     if (!context.mounted) return;
-
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Product deleted',
-        ),
-      ),
+      const SnackBar(content: Text('Product deleted')),
     );
   }
 
-  // ============================================================
-  // EDIT PRODUCT
-  // ============================================================
-
-  void openEditProduct(
-      BuildContext context,
-      QueryDocumentSnapshot doc,
-      ) {
-    final data =
-    doc.data() as Map<String, dynamic>;
-
+  void openEditProduct(BuildContext context, QueryDocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => EditProductScreen(
-          productId: doc.id,
-          product: data,
-        ),
+      cafeRoute(
+        EditProductScreen(productId: doc.id, product: data),
       ),
     );
   }
 
-  // ============================================================
-  // PRODUCT DETAILS
-  // ============================================================
-
-  void openProductDetails(
-      BuildContext context,
-      QueryDocumentSnapshot doc,
-      ) {
-    final data =
-    doc.data() as Map<String, dynamic>;
-
-    final num quantity =
-        data['quantity'] ?? 0;
+  void openProductDetails(BuildContext context, QueryDocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final num quantity = data['quantity'] ?? 0;
 
     if (!isAdmin && quantity <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'This product is currently out of stock.',
-          ),
-        ),
+        const SnackBar(content: Text('This product is currently out of stock.')),
       );
-
       return;
     }
 
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => ProductDetailsScreen(
-          productId: doc.id,
-          product: data,
-        ),
+      cafeRoute(
+        ProductDetailsScreen(productId: doc.id, product: data),
       ),
     );
   }
 
-  // ============================================================
-  // BUILD
-  // ============================================================
+  Future<void> addProductToCart(QueryDocumentSnapshot doc) async {
+    final data = doc.data() as Map<String, dynamic>;
+    final num quantity = data['quantity'] ?? 0;
+    if (quantity <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This product is currently out of stock.')),
+      );
+      return;
+    }
+
+    try {
+      final success = await _cartService.addToCart(
+        productId: doc.id,
+        product: data,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Added to cart' : 'This product is out of stock.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
-
       body: SafeArea(
         child: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('products')
               .orderBy('name')
               .snapshots(),
-
           builder: (context, productSnapshot) {
-            if (productSnapshot.connectionState ==
-                ConnectionState.waiting) {
-              return Center(
-                child: CircularProgressIndicator(
-                  color: brown,
-                ),
-              );
+            if (productSnapshot.connectionState == ConnectionState.waiting) {
+              return const LoadingState();
             }
 
             if (productSnapshot.hasError) {
-              return Center(
-                child: Text(
-                  'Something went wrong.',
-                  style: TextStyle(
-                    color: brown,
-                  ),
-                ),
-              );
+              return const ErrorState(message: 'We could not load the menu.');
             }
 
-            final products =
-                productSnapshot.data?.docs ?? [];
+            final products = productSnapshot.data?.docs ?? [];
+            final query = searchQuery.trim().toLowerCase();
 
-            final filteredProducts =
-            selectedCategoryId == 'all'
-                ? products
-                : products.where((doc) {
-              final data =
-              doc.data()
-              as Map<String, dynamic>;
-
-              return data['categoryId'] ==
-                  selectedCategoryId;
+            final filteredProducts = products.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final matchesCategory = selectedCategoryId == 'all' ||
+                  data['categoryId'] == selectedCategoryId;
+              final name = data['name']?.toString().toLowerCase() ?? '';
+              final matchesSearch = query.isEmpty || name.contains(query);
+              return matchesCategory && matchesSearch;
             }).toList();
 
             return CustomScrollView(
-              physics:
-              const BouncingScrollPhysics(),
-
+              physics: const BouncingScrollPhysics(),
               slivers: [
-                // ==================================================
-                // HEADER
-                // ==================================================
-
+                SliverToBoxAdapter(child: _buildHeader()),
                 SliverToBoxAdapter(
-                  child: _buildHeader(),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                    child: AppSearchField(
+                      controller: searchController,
+                      onChanged: (value) => setState(() => searchQuery = value),
+                    ),
+                  ),
                 ),
-
-                // ==================================================
-                // HERO
-                // ==================================================
-
                 if (products.isNotEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding:
-                      const EdgeInsets.fromLTRB(
-                        18,
-                        4,
-                        18,
-                        28,
-                      ),
-                      child:
-                      _buildHero(products.first),
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                      child: _buildHero(products.first),
                     ),
                   ),
-
-                // ==================================================
-                // CATEGORY TITLE
-                // ==================================================
-
-                SliverToBoxAdapter(
-                  child: _buildSectionHeader(
-                    'EXPLORE OUR MENU',
-                    'Find something made for your mood',
+                const SliverToBoxAdapter(
+                  child: SectionHeader(
+                    title: 'Explore the menu',
+                    subtitle: 'Coffee, treats, and cozy favorites',
                   ),
                 ),
-
-                // ==================================================
-                // CATEGORIES
-                // ==================================================
-
-                SliverToBoxAdapter(
-                  child: _buildCategories(),
-                ),
-
-                // ==================================================
-                // POPULAR TITLE
-                // ==================================================
-
+                SliverToBoxAdapter(child: _buildCategories()),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding:
-                    const EdgeInsets.fromLTRB(
-                      18,
-                      30,
-                      18,
-                      14,
-                    ),
-                    child: Row(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                selectedCategoryId ==
-                                    'all'
-                                    ? 'POPULAR TODAY'
-                                    : 'MENU ITEMS',
-                                style: TextStyle(
-                                  color: brown,
-                                  fontSize: 17,
-                                  fontWeight:
-                                  FontWeight.w900,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                              const SizedBox(
-                                height: 4,
-                              ),
-                              Text(
-                                selectedCategoryId ==
-                                    'all'
-                                    ? 'Something worth coming back for'
-                                    : 'Made fresh for you',
-                                style: TextStyle(
-                                  color: lightBrown,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          '${filteredProducts.length} items',
-                          style: TextStyle(
-                            color: lightBrown,
-                            fontSize: 11,
-                            fontWeight:
-                            FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                    padding: const EdgeInsets.only(top: 8, bottom: 14),
+                    child: SectionHeader(
+                      title: selectedCategoryId == 'all' ? 'Popular today' : 'Menu items',
+                      subtitle: query.isEmpty
+                          ? 'Fresh from the café'
+                          : 'Search results',
+                      trailing: Text(
+                        '${filteredProducts.length}',
+                        style: AppTextStyles.caption,
+                      ),
                     ),
                   ),
                 ),
-
-                // ==================================================
-                // PRODUCT LIST
-                // ==================================================
-
                 if (filteredProducts.isEmpty)
                   SliverFillRemaining(
                     hasScrollBody: false,
-                    child: _buildEmptyProducts(),
+                    child: EmptyState(
+                      icon: Icons.local_cafe_outlined,
+                      title: query.isNotEmpty ? 'No matches' : 'Nothing here yet',
+                      message: query.isNotEmpty
+                          ? 'Try a different name or category.'
+                          : 'Try another category.',
+                    ),
                   )
                 else
                   SliverPadding(
-                    padding:
-                    const EdgeInsets.fromLTRB(
-                      18,
-                      0,
-                      18,
-                      35,
-                    ),
-
-                    sliver: SliverList(
-                      delegate:
-                      SliverChildBuilderDelegate(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                    sliver: SliverLayoutBuilder(
+                      builder: (context, constraints) {
+                        final width = constraints.crossAxisExtent;
+                        final columns = width >= 720 ? 3 : 2;
+                        return SliverGrid(
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: columns,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.68,
+                          ),
+                          delegate: SliverChildBuilderDelegate(
                             (context, index) {
-                          final doc =
-                          filteredProducts[index];
-
-                          return _buildMenuProduct(
-                            context,
-                            doc,
-                          );
-                        },
-                        childCount:
-                        filteredProducts.length,
-                      ),
+                              return _buildGridProduct(
+                                context,
+                                filteredProducts[index],
+                              );
+                            },
+                            childCount: filteredProducts.length,
+                          ),
+                        );
+                      },
                     ),
                   ),
               ],
@@ -416,295 +292,159 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ============================================================
-  // HEADER
-  // ============================================================
-
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        15,
-        16,
-        10,
-      ),
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12
+        ? 'Good morning'
+        : hour < 17
+            ? 'Good afternoon'
+            : 'Good evening';
 
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 16, 8),
       child: Row(
         children: [
+          Image.asset(
+            'lib/assets/images/cat_logo.png',
+            width: 40,
+            height: 40,
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.local_cafe_rounded,
+              color: AppColors.brown,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(greeting, style: AppTextStyles.caption),
                 Text(
-                  'Cat Cafe',
-                  style: TextStyle(
-                    color: brown,
-                    fontSize: 27,
-                    fontWeight: FontWeight.w900,
-                    fontFamily: 'serif',
-                    letterSpacing: 1,
-                  ),
-                ),
-
-                const SizedBox(height: 2),
-
-                Text(
-                  'COFFEE • CATS • COZY THINGS',
-                  style: TextStyle(
-                    color: lightBrown,
-                    fontSize: 8,
-                    letterSpacing: 2,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  'Purr & Pour',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.pageTitle.copyWith(fontSize: 22),
                 ),
               ],
             ),
           ),
-
-          Container(
-            width: 42,
-            height: 42,
-
-            decoration: BoxDecoration(
-              color: cardColor,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color:
-                  Colors.brown.withOpacity(0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-
-            child: Icon(
-              Icons.menu_rounded,
-              color: brown,
-              size: 21,
-            ),
+          AppIconButton(
+            icon: Icons.person_outline_rounded,
+            onPressed: widget.onOpenProfile ?? () {},
           ),
         ],
       ),
     );
   }
 
-  // ============================================================
-  // HERO
-  // ============================================================
-
-  Widget _buildHero(
-      QueryDocumentSnapshot doc,
-      ) {
-    final data =
-    doc.data() as Map<String, dynamic>;
-
-    final name =
-        data['name']?.toString() ?? '';
-
-    final description =
-        data['description']?.toString() ?? '';
-
-    final imageUrl =
-        data['imageUrl']?.toString() ?? '';
-
-    final price =
-        (data['price'] as num?) ?? 0;
-
-    final quantity =
-        (data['quantity'] as num?) ?? 0;
-
-    final outOfStock =
-        quantity <= 0;
+  Widget _buildHero(QueryDocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final name = data['name']?.toString() ?? '';
+    final description = data['description']?.toString() ?? '';
+    final imageUrl = data['imageUrl']?.toString() ?? '';
+    final price = (data['price'] as num?) ?? 0;
+    final quantity = (data['quantity'] as num?) ?? 0;
+    final outOfStock = quantity <= 0;
 
     return GestureDetector(
-      onTap: () {
-        openProductDetails(
-          context,
-          doc,
-        );
-      },
-
+      onTap: () => openProductDetails(context, doc),
       child: Container(
-        height: 245,
-
+        height: 210,
         decoration: BoxDecoration(
-          color: brown,
-          borderRadius:
-          BorderRadius.circular(30),
-
-          boxShadow: [
-            BoxShadow(
-              color:
-              Colors.brown.withOpacity(0.15),
-              blurRadius: 20,
-              offset: const Offset(0, 9),
-            ),
-          ],
+          borderRadius: AppRadius.extraLarge,
+          boxShadow: AppShadows.soft,
         ),
-
         child: ClipRRect(
-          borderRadius:
-          BorderRadius.circular(30),
-
+          borderRadius: AppRadius.extraLarge,
           child: Stack(
+            fit: StackFit.expand,
             children: [
-              // IMAGE
-              Positioned.fill(
-                child: imageUrl.isNotEmpty
-                    ? Image.network(
-                  imageUrl,
-                  fit: BoxFit.cover,
-
-                  errorBuilder:
-                      (_, __, ___) {
-                    return _heroPlaceholder();
-                  },
-                )
-                    : _heroPlaceholder(),
-              ),
-
-              // DARK OVERLAY
-              Positioned.fill(
-                child: Container(
-                  decoration:
-                  BoxDecoration(
-                    gradient: LinearGradient(
-                      begin:
-                      Alignment.topCenter,
-                      end:
-                      Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.03),
-                        Colors.black.withOpacity(0.18),
-                        Colors.black.withOpacity(0.78),
-                      ],
-                    ),
+              ProductImage(imageUrl: imageUrl),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.05),
+                      Colors.black.withValues(alpha: 0.62),
+                    ],
                   ),
                 ),
               ),
-
-              // FEATURED LABEL
               Positioned(
-                top: 16,
-                left: 16,
-
+                top: 14,
+                left: 14,
                 child: Container(
-                  padding:
-                  const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 7,
-                  ),
-
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius:
-                    BorderRadius.circular(20),
+                    color: AppColors.surface,
+                    borderRadius: AppRadius.pillRadius,
                   ),
-
                   child: Text(
-                    'TODAY\'S PICK',
-                    style: TextStyle(
-                      color: brown,
-                      fontSize: 8,
-                      fontWeight:
-                      FontWeight.w900,
-                      letterSpacing: 1,
+                    "Today's pick",
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.brown,
+                      letterSpacing: 0.3,
                     ),
                   ),
                 ),
               ),
-
-              // ADMIN MENU
               if (isAdmin)
                 Positioned(
-                  top: 10,
-                  right: 10,
-                  child:
-                  _buildAdminMenu(
-                    context,
-                    doc,
-                    dark: true,
-                  ),
+                  top: 8,
+                  right: 8,
+                  child: _buildAdminMenu(context, doc, dark: true),
                 ),
-
-              // BOTTOM CONTENT
               Positioned(
-                left: 18,
-                right: 18,
-                bottom: 18,
-
+                left: 16,
+                right: 16,
+                bottom: 16,
                 child: Row(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.end,
-
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Expanded(
                       child: Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment
-                            .start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             name,
                             maxLines: 1,
-                            overflow:
-                            TextOverflow.ellipsis,
-
-                            style:
-                            const TextStyle(
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.pageTitle.copyWith(
                               color: Colors.white,
-                              fontSize: 23,
-                              fontWeight:
-                              FontWeight.w900,
+                              fontSize: 22,
                             ),
                           ),
-
-                          const SizedBox(
-                            height: 5,
-                          ),
-
+                          const SizedBox(height: 4),
                           Text(
                             description.isEmpty
                                 ? 'A cozy favorite from our menu.'
                                 : description,
                             maxLines: 1,
-                            overflow:
-                            TextOverflow.ellipsis,
-
-                            style:
-                            const TextStyle(
-                              color:
-                              Colors.white70,
-                              fontSize: 10,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.secondary.copyWith(
+                              color: Colors.white70,
                             ),
                           ),
-
-                          const SizedBox(
-                            height: 10,
-                          ),
-
-                          if (outOfStock)
-                            _outOfStockBadge(
-                              dark: true,
+                          if (outOfStock) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Out of stock',
+                              style: AppTextStyles.caption.copyWith(
+                                color: Colors.white,
+                              ),
                             ),
+                          ],
                         ],
                       ),
                     ),
-
-                    const SizedBox(
-                      width: 12,
-                    ),
-
+                    const SizedBox(width: 12),
                     Text(
                       '\$${price.toStringAsFixed(2)}',
-                      style:
-                      const TextStyle(
+                      style: AppTextStyles.price.copyWith(
                         color: Colors.white,
-                        fontSize: 21,
-                        fontWeight:
-                        FontWeight.w900,
+                        fontSize: 20,
                       ),
                     ),
                   ],
@@ -717,123 +457,39 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _heroPlaceholder() {
-    return Container(
-      color: const Color(0xFF8A5A43),
-      child: const Center(
-        child: Icon(
-          Icons.local_cafe_rounded,
-          color: Colors.white54,
-          size: 55,
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // SECTION HEADER
-  // ============================================================
-
-  Widget _buildSectionHeader(
-      String title,
-      String subtitle,
-      ) {
-    return Padding(
-      padding:
-      const EdgeInsets.symmetric(
-        horizontal: 18,
-      ),
-
-      child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
-
-        children: [
-          Text(
-            title,
-
-            style: TextStyle(
-              color: brown,
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1,
-            ),
-          ),
-
-          const SizedBox(
-            height: 4,
-          ),
-
-          Text(
-            subtitle,
-
-            style: TextStyle(
-              color: lightBrown,
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // CATEGORIES
-  // ============================================================
-
   Widget _buildCategories() {
     return SizedBox(
-      height: 91,
-
+      height: 56,
       child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('categories')
             .orderBy('name')
             .snapshots(),
-
-        builder:
-            (context, snapshot) {
-          final categories =
-              snapshot.data?.docs ?? [];
-
+        builder: (context, snapshot) {
+          final categories = snapshot.data?.docs ?? [];
           return ListView(
-            scrollDirection:
-            Axis.horizontal,
-
-            padding:
-            const EdgeInsets.fromLTRB(
-              18,
-              15,
-              18,
-              0,
-            ),
-
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             children: [
-              _categoryItem(
-                id: 'all',
-                title: 'All',
-                icon: Icons.apps_rounded,
+              AppChip(
+                label: 'All',
+                icon: Icons.grid_view_rounded,
+                selected: selectedCategoryId == 'all',
+                onTap: () => setState(() => selectedCategoryId = 'all'),
               ),
-
-              ...categories.map(
-                    (doc) {
-                  final data =
-                  doc.data()
-                  as Map<String, dynamic>;
-
-                  final title =
-                      data['name']
-                          ?.toString() ??
-                          '';
-
-                  return _categoryItem(
-                    id: doc.id,
-                    title: title,
-                    icon:
-                    _categoryIcon(title),
-                  );
-                },
-              ),
+              ...categories.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final title = data['name']?.toString() ?? '';
+                return Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: AppChip(
+                    label: title,
+                    icon: _categoryIcon(title),
+                    selected: selectedCategoryId == doc.id,
+                    onTap: () => setState(() => selectedCategoryId = doc.id),
+                  ),
+                );
+              }),
             ],
           );
         },
@@ -841,686 +497,94 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _categoryItem({
-    required String id,
-    required String title,
-    required IconData icon,
-  }) {
-    final selected =
-        selectedCategoryId == id;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedCategoryId = id;
-        });
-      },
-
-      child: AnimatedContainer(
-        duration:
-        const Duration(
-          milliseconds: 200,
-        ),
-
-        width: 78,
-
-        margin:
-        const EdgeInsets.only(
-          right: 10,
-        ),
-
-        decoration: BoxDecoration(
-          color: selected
-              ? brown
-              : cardColor,
-
-          borderRadius:
-          BorderRadius.circular(22),
-
-          border: Border.all(
-            color: selected
-                ? brown
-                : softBrown,
-          ),
-        ),
-
-        child: Column(
-          mainAxisAlignment:
-          MainAxisAlignment.center,
-
-          children: [
-            Icon(
-              icon,
-              color: selected
-                  ? Colors.white
-                  : brown,
-              size: 23,
-            ),
-
-            const SizedBox(
-              height: 7,
-            ),
-
-            Text(
-              title,
-
-              maxLines: 1,
-
-              overflow:
-              TextOverflow.ellipsis,
-
-              style: TextStyle(
-                color: selected
-                    ? Colors.white
-                    : brown,
-                fontSize: 10,
-                fontWeight:
-                FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  IconData _categoryIcon(
-      String category,
-      ) {
-    final value =
-    category.toLowerCase();
-
-    if (value.contains('coffee') ||
-        value.contains('cafe')) {
+  IconData _categoryIcon(String category) {
+    final value = category.toLowerCase();
+    if (value.contains('coffee') || value.contains('cafe')) {
       return Icons.coffee_rounded;
     }
-
-    if (value.contains('dessert') ||
-        value.contains('cake') ||
-        value.contains('sweet')) {
+    if (value.contains('dessert') || value.contains('cake') || value.contains('sweet')) {
       return Icons.cake_outlined;
     }
-
-    if (value.contains('drink') ||
-        value.contains('juice')) {
+    if (value.contains('drink') || value.contains('juice')) {
       return Icons.local_drink_outlined;
     }
-
     if (value.contains('tea')) {
       return Icons.emoji_food_beverage_outlined;
     }
-
     return Icons.restaurant_menu_rounded;
   }
 
-  // ============================================================
-  // MENU PRODUCT
-  // ============================================================
+  Widget _buildGridProduct(BuildContext context, QueryDocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final name = data['name']?.toString() ?? '';
+    final description = data['description']?.toString() ?? '';
+    final imageUrl = data['imageUrl']?.toString() ?? '';
+    final price = (data['price'] as num?) ?? 0;
+    final quantity = (data['quantity'] as num?) ?? 0;
+    final outOfStock = quantity <= 0;
 
-  Widget _buildMenuProduct(
-      BuildContext context,
-      QueryDocumentSnapshot doc,
-      ) {
-    final data =
-    doc.data() as Map<String, dynamic>;
-
-    final String name =
-        data['name']?.toString() ?? '';
-
-    final String description =
-        data['description']?.toString() ?? '';
-
-    final String imageUrl =
-        data['imageUrl']?.toString() ?? '';
-
-    final String categoryId =
-        data['categoryId']?.toString() ?? '';
-
-    final num price =
-        (data['price'] as num?) ?? 0;
-
-    final num quantity =
-        (data['quantity'] as num?) ?? 0;
-
-    final bool outOfStock =
-        quantity <= 0;
-
-    return GestureDetector(
-      onTap: () {
-        openProductDetails(
-          context,
-          doc,
-        );
-      },
-
-      child: Container(
-        margin:
-        const EdgeInsets.only(
-          bottom: 13,
-        ),
-
-        decoration: BoxDecoration(
-          color: cardColor,
-
-          borderRadius:
-          BorderRadius.circular(24),
-
-          border: Border.all(
-            color:
-            const Color(0xFFEEDFCF),
-          ),
-        ),
-
-        child: Padding(
-          padding:
-          const EdgeInsets.all(10),
-
-          child: Row(
-            children: [
-              // ==================================================
-              // IMAGE
-              // ==================================================
-
-              ClipRRect(
-                borderRadius:
-                BorderRadius.circular(18),
-
-                child: SizedBox(
-                  width: 94,
-                  height: 94,
-
-                  child: imageUrl.isNotEmpty
-                      ? Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-
-                    color: outOfStock
-                        ? Colors.white
-                        .withOpacity(0.35)
-                        : null,
-
-                    colorBlendMode:
-                    outOfStock
-                        ? BlendMode.saturation
-                        : null,
-
-                    errorBuilder:
-                        (_, __, ___) {
-                      return _smallPlaceholder();
-                    },
-                  )
-                      : _smallPlaceholder(),
-                ),
-              ),
-
-              const SizedBox(
-                width: 14,
-              ),
-
-              // ==================================================
-              // INFO
-              // ==================================================
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
-
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            name,
-
-                            maxLines: 1,
-
-                            overflow:
-                            TextOverflow.ellipsis,
-
-                            style: TextStyle(
-                              color: brown,
-                              fontSize: 16,
-                              fontWeight:
-                              FontWeight.w900,
-                            ),
-                          ),
-                        ),
-
-                        if (!isAdmin)
-                          _favoriteButton(
-                            doc.id,
-                          ),
-                      ],
-                    ),
-
-                    const SizedBox(
-                      height: 4,
-                    ),
-
-                    Text(
-                      description.isEmpty
-                          ? 'Freshly prepared for you.'
-                          : description,
-
-                      maxLines: 2,
-
-                      overflow:
-                      TextOverflow.ellipsis,
-
-                      style: TextStyle(
-                        color: lightBrown,
-                        fontSize: 10,
-                        height: 1.35,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 8,
-                    ),
-
-                    Row(
-                      children: [
-                        _categoryLabel(
-                          categoryId,
-                        ),
-
-                        const Spacer(),
-
-                        Text(
-                          '\$${price.toStringAsFixed(2)}',
-
-                          style: TextStyle(
-                            color: brown,
-                            fontSize: 16,
-                            fontWeight:
-                            FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(
-                      height: 7,
-                    ),
-
-                    Row(
-                      children: [
-                        if (outOfStock)
-                          _outOfStockBadge()
-                        else
-                          Row(
-                            children: [
-                              Container(
-                                width: 7,
-                                height: 7,
-                                decoration:
-                                const BoxDecoration(
-                                  color:
-                                  Color(0xFF76945F),
-                                  shape:
-                                  BoxShape.circle,
-                                ),
-                              ),
-
-                              const SizedBox(
-                                width: 5,
-                              ),
-
-                              Text(
-                                '$quantity available',
-
-                                style:
-                                const TextStyle(
-                                  color:
-                                  Color(0xFF76945F),
-                                  fontSize: 9,
-                                  fontWeight:
-                                  FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                        const Spacer(),
-
-                        if (isAdmin)
-                          _buildAdminMenu(
-                            context,
-                            doc,
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // CATEGORY LABEL
-  // ============================================================
-
-  Widget _categoryLabel(
-      String categoryId,
-      ) {
-    if (categoryId.isEmpty) {
-      return const SizedBox();
+    if (isAdmin) {
+      return ProductCard(
+        name: name,
+        price: price,
+        imageUrl: imageUrl,
+        description: description,
+        outOfStock: outOfStock,
+        onTap: () => openProductDetails(context, doc),
+        adminMenu: _buildAdminMenu(context, doc),
+      );
     }
 
-    return StreamBuilder<
-        DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('categories')
-          .doc(categoryId)
-          .snapshots(),
-
-      builder:
-          (context, snapshot) {
-        String name = '';
-
-        if (snapshot.hasData &&
-            snapshot.data!.exists) {
-          final data =
-          snapshot.data!.data();
-
-          name =
-              data?['name']
-                  ?.toString() ??
-                  '';
-        }
-
-        if (name.isEmpty) {
-          return const SizedBox();
-        }
-
-        return Container(
-          padding:
-          const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 4,
-          ),
-
-          decoration: BoxDecoration(
-            color:
-            const Color(0xFFF4E4D2),
-
-            borderRadius:
-            BorderRadius.circular(8),
-          ),
-
-          child: Text(
-            name,
-
-            style: TextStyle(
-              color: lightBrown,
-              fontSize: 8,
-              fontWeight:
-              FontWeight.w700,
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ============================================================
-  // FAVORITE
-  // ============================================================
-
-  Widget _favoriteButton(
-      String productId,
-      ) {
     return FutureBuilder<bool>(
-      future: isProductFavorite(
-        productId,
-      ),
-
-      builder:
-          (context, snapshot) {
-        final isFavorite =
-            snapshot.data ?? false;
-
-        return GestureDetector(
-          onTap: () async {
-            await toggleFavorite(
-              productId,
-            );
-
-            if (mounted) {
-              setState(() {});
-            }
+      future: isProductFavorite(doc.id),
+      builder: (context, snapshot) {
+        final isFavorite = snapshot.data ?? false;
+        return ProductCard(
+          name: name,
+          price: price,
+          imageUrl: imageUrl,
+          description: description,
+          outOfStock: outOfStock,
+          isFavorite: isFavorite,
+          onTap: () => openProductDetails(context, doc),
+          onFavorite: () async {
+            await toggleFavorite(doc.id);
+            if (mounted) setState(() {});
           },
-
-          child: Container(
-            width: 34,
-            height: 34,
-
-            decoration: BoxDecoration(
-              color:
-              const Color(0xFFF8EBD7),
-              shape: BoxShape.circle,
-            ),
-
-            child: Icon(
-              isFavorite
-                  ? Icons.favorite_rounded
-                  : Icons.favorite_border_rounded,
-
-              color: brown,
-              size: 17,
-            ),
-          ),
+          onAdd: () => addProductToCart(doc),
         );
       },
     );
   }
-
-  // ============================================================
-  // ADMIN MENU
-  // ============================================================
 
   Widget _buildAdminMenu(
-      BuildContext context,
-      QueryDocumentSnapshot doc, {
-        bool dark = false,
-      }) {
-    return Container(
-      width: 36,
-      height: 36,
-
-      decoration: BoxDecoration(
-        color: dark
-            ? Colors.white.withOpacity(0.92)
-            : const Color(0xFFF8EBD7),
-
-        shape: BoxShape.circle,
-      ),
-
+    BuildContext context,
+    QueryDocumentSnapshot doc, {
+    bool dark = false,
+  }) {
+    return Material(
+      color: dark ? Colors.white : AppColors.cream,
+      shape: const CircleBorder(),
       child: PopupMenuButton<String>(
         padding: EdgeInsets.zero,
-
-        icon: Icon(
-          Icons.more_horiz_rounded,
-          color: brown,
-          size: 20,
-        ),
-
+        icon: const Icon(Icons.more_horiz_rounded, color: AppColors.brown, size: 20),
         onSelected: (value) {
-          if (value == 'edit') {
-            openEditProduct(
-              context,
-              doc,
-            );
-          }
-
-          if (value == 'delete') {
-            deleteProduct(
-              context,
-              doc.id,
-            );
-          }
+          if (value == 'edit') openEditProduct(context, doc);
+          if (value == 'delete') deleteProduct(context, doc.id);
         },
-
         itemBuilder: (context) => const [
-          PopupMenuItem(
-            value: 'edit',
-            child: Text(
-              'Edit',
-            ),
-          ),
-
-          PopupMenuItem(
-            value: 'delete',
-            child: Text(
-              'Delete',
-            ),
-          ),
+          PopupMenuItem(value: 'edit', child: Text('Edit')),
+          PopupMenuItem(value: 'delete', child: Text('Delete')),
         ],
       ),
     );
   }
 
-  // ============================================================
-  // OUT OF STOCK
-  // ============================================================
+  Future<bool> isProductFavorite(String productId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
 
-  Widget _outOfStockBadge({
-    bool dark = false,
-  }) {
-    return Container(
-      padding:
-      const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 4,
-      ),
-
-      decoration: BoxDecoration(
-        color: dark
-            ? Colors.white.withOpacity(0.18)
-            : const Color(0xFFF2D6D0),
-
-        borderRadius:
-        BorderRadius.circular(8),
-      ),
-
-      child: Text(
-        'OUT OF STOCK',
-
-        style: TextStyle(
-          color: dark
-              ? Colors.white
-              : const Color(0xFFB34C3F),
-          fontSize: 8,
-          fontWeight:
-          FontWeight.w900,
-          letterSpacing: 0.4,
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // IMAGE PLACEHOLDER
-  // ============================================================
-
-  Widget _smallPlaceholder() {
-    return Container(
-      color: const Color(0xFFF0DFCC),
-
-      child: Icon(
-        Icons.local_cafe_rounded,
-        color: lightBrown,
-        size: 30,
-      ),
-    );
-  }
-
-  // ============================================================
-  // EMPTY
-  // ============================================================
-
-  Widget _buildEmptyProducts() {
-    return Center(
-      child: Padding(
-        padding:
-        const EdgeInsets.all(30),
-
-        child: Column(
-          mainAxisSize:
-          MainAxisSize.min,
-
-          children: [
-            Container(
-              width: 78,
-              height: 78,
-
-              decoration:
-              const BoxDecoration(
-                color:
-                Color(0xFFF1DDC8),
-                shape:
-                BoxShape.circle,
-              ),
-
-              child: Icon(
-                Icons.local_cafe_outlined,
-                color: brown,
-                size: 36,
-              ),
-            ),
-
-            const SizedBox(
-              height: 15,
-            ),
-
-            Text(
-              'Nothing here yet',
-              style: TextStyle(
-                color: brown,
-                fontSize: 18,
-                fontWeight:
-                FontWeight.w800,
-              ),
-            ),
-
-            const SizedBox(
-              height: 5,
-            ),
-
-            Text(
-              'Try another category.',
-              style: TextStyle(
-                color: lightBrown,
-                fontSize: 11,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // FAVORITES FIRESTORE
-  // ============================================================
-
-  Future<bool> isProductFavorite(
-      String productId,
-      ) async {
-    final user =
-        FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return false;
-    }
-
-    final doc =
-    await FirebaseFirestore.instance
+    final doc = await FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
         .collection('favorites')
@@ -1530,35 +594,23 @@ class _HomeScreenState extends State<HomeScreen> {
     return doc.exists;
   }
 
-  Future<void> toggleFavorite(
-      String productId,
+  Future<void> toggleFavorite(String productId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-
-      ) async {
-    final user =
-        FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return;
-    }
-
-    final favoriteRef =
-    FirebaseFirestore.instance
+    final favoriteRef = FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
         .collection('favorites')
         .doc(productId);
 
-    final existing =
-    await favoriteRef.get();
-
+    final existing = await favoriteRef.get();
     if (existing.exists) {
       await favoriteRef.delete();
     } else {
       await favoriteRef.set({
         'productId': productId,
-        'createdAt':
-        FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
       });
     }
   }

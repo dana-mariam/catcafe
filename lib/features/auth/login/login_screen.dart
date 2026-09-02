@@ -3,10 +3,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../../admin/admin_main_screen.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_text_styles.dart';
 import '../../../user/user_main_screen.dart';
+import '../../../widgets/app_button.dart';
+import '../../../widgets/app_logo.dart';
+import '../../../widgets/app_text_field.dart';
+import '../../../widgets/product_card.dart';
 import '../signup/signup_screen.dart';
-import '../../profile/profile_screen.dart';
-
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,12 +22,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-
-  final TextEditingController emailController =
-  TextEditingController();
-
-  final TextEditingController passwordController =
-  TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
 
   bool isLoading = false;
   bool obscurePassword = true;
@@ -34,62 +35,43 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  //2
   Future<void> login() async {
-    if (!formKey.currentState!.validate()) {
-      return;
-    }
+    if (!formKey.currentState!.validate()) return;
 
-    setState(() {
-      isLoading = true;
-    });
-//3
+    setState(() => isLoading = true);
+
     try {
-      final credential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text,
       );
 
       final user = credential.user;
-//4
       if (user == null) {
         throw Exception('Login failed');
       }
 
-      // 5
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .get();
-//6
+
       if (!userDoc.exists) {
         throw Exception('User profile not found');
       }
-//7
-      final data = userDoc.data();
 
-      final String role = data?['role'] ?? 'user';
-
+      final String role = userDoc.data()?['role'] ?? 'user';
       if (!mounted) return;
-//8
-      // Admin
+
       if (role == 'admin') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (_) => const AdminMainScreen(),
-          ),
+          cafeRoute(const AdminMainScreen()),
         );
-      }
-//9
-      // Normal user
-      else {
+      } else {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (_) => const UserMainScreen(),
-          ),
+          cafeRoute(const UserMainScreen()),
         );
       }
     } on FirebaseAuthException catch (e) {
@@ -108,370 +90,142 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not load your account'),
-        ),
+        const SnackBar(content: Text('Could not load your account')),
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
+      if (mounted) setState(() => isLoading = false);
     }
-  }
-
-  InputDecoration fieldDecoration({
-    required String hint,
-  }) {
-    return InputDecoration(
-      hintText: hint,
-      filled: true,
-      fillColor: const Color(0xFFF5E9D7),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(35),
-        borderSide: BorderSide.none,
-      ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 22,
-        vertical: 17,
-      ),
-    );
-  }
-
-  Widget cafeLogo() {
-    return Column(
-      children: [
-        Image.asset(
-          'lib/assets/images/cat_logo.png',
-          width: 55,
-          height: 55,
-        ),
-
-        const SizedBox(height: 4),
-
-        const Text(
-          'Cat Cafe',
-          style: TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF713D27),
-            fontFamily: 'serif',
-            letterSpacing: 1.2,
-          ),
-        ),
-
-        const SizedBox(height: 5),
-
-        const Text(
-          'CAT CAFÉ',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF9A6D58),
-            letterSpacing: 5,
-          ),
-        ),
-      ],
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8EBD7),
-
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 12,
-          ),
-
-          child: Form(
-            key: formKey,
-
-            child: Column(
-              children: [
-                const SizedBox(height: 5),
-
-                cafeLogo(),
-
-                const SizedBox(height: 10),
-
-                const Text(
-                  'Your cup and a cat are waiting.',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Color(0xFF9A6D58),
-                  ),
-                ),
-
-                const SizedBox(height: 5),
-
-                Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.topCenter,
-
-                  children: [
-                    Container(
-                      width: double.infinity,
-
-                      margin: const EdgeInsets.only(
-                        top: 95,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight - 56),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 12),
+                      const AppLogo(),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Your cup and a cat are waiting.',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.secondary,
                       ),
-
-                      padding: const EdgeInsets.fromLTRB(
-                        22,
-                        115,
-                        22,
-                        20,
-                      ),
-
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFCF6),
-                        borderRadius:
-                        BorderRadius.circular(35),
-                      ),
-
-                      child: Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment.start,
-
-                        children: [
-                          const Text(
-                            'Email',
-                            style: TextStyle(
-                              color: Color(0xFF713D27),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-
-                          const SizedBox(height: 7),
-
-                          TextFormField(
-                            controller: emailController,
-                            keyboardType:
-                            TextInputType.emailAddress,
-
-                            decoration: fieldDecoration(
+                      const SizedBox(height: AppSpacing.xxxl),
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Column(
+                          children: [
+                            AppTextField(
+                              controller: emailController,
+                              label: 'Email',
                               hint: 'you@catcafe.com',
+                              keyboardType: TextInputType.emailAddress,
+                              prefixIcon: Icons.mail_outline_rounded,
+                              textInputAction: TextInputAction.next,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Enter your email';
+                                }
+                                if (!value.contains('@')) {
+                                  return 'Enter a valid email';
+                                }
+                                return null;
+                              },
                             ),
-
-                            validator: (value) {
-                              if (value == null ||
-                                  value.trim().isEmpty) {
-                                return 'Enter your email';
-                              }
-
-                              if (!value.contains('@')) {
-                                return 'Enter a valid email';
-                              }
-
-                              return null;
-                            },
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          const Text(
-                            'Password',
-                            style: TextStyle(
-                              color: Color(0xFF713D27),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-
-                          const SizedBox(height: 7),
-
-                          TextFormField(
-                            controller: passwordController,
-                            obscureText: obscurePassword,
-
-                            decoration:
-                            fieldDecoration(
+                            const SizedBox(height: 16),
+                            AppTextField(
+                              controller: passwordController,
+                              label: 'Password',
                               hint: '••••••••',
-                            ).copyWith(
-                              suffixIcon:
-                              IconButton(
+                              obscureText: obscurePassword,
+                              prefixIcon: Icons.lock_outline_rounded,
+                              textInputAction: TextInputAction.done,
+                              suffixIcon: IconButton(
                                 onPressed: () {
-                                  setState(() {
-                                    obscurePassword =
-                                    !obscurePassword;
-                                  });
+                                  setState(() => obscurePassword = !obscurePassword);
                                 },
-
                                 icon: Icon(
                                   obscurePassword
-                                      ? Icons
-                                      .visibility_off
-                                      : Icons.visibility,
-
-                                  color: const Color(
-                                    0xFF795548,
-                                  ),
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: AppColors.muted,
                                 ),
                               ),
-                            ),
-
-                            validator: (value) {
-                              if (value == null ||
-                                  value.isEmpty) {
-                                return 'Enter your password';
-                              }
-
-                              if (value.length < 6) {
-                                return 'Password must be at least 6 characters';
-                              }
-
-                              return null;
-                            },
-                          ),
-
-                          const SizedBox(height: 7),
-
-                          Align(
-                            alignment:
-                            Alignment.centerRight,
-
-                            child: TextButton(
-                              onPressed: () {},
-
-                              child: const Text(
-                                'Forgot password?',
-                                style: TextStyle(
-                                  color:
-                                  Color(0xFF713D27),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 5),
-
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-
-                            child: ElevatedButton(
-                              onPressed:
-                              isLoading
-                                  ? null
-                                  : login,
-
-                              style:
-                              ElevatedButton.styleFrom(
-                                backgroundColor:
-                                const Color(
-                                  0xFF713D27,
-                                ),
-
-                                foregroundColor:
-                                Colors.white,
-
-                                elevation: 3,
-
-                                shape:
-                                RoundedRectangleBorder(
-                                  borderRadius:
-                                  BorderRadius.circular(
-                                    30,
-                                  ),
-                                ),
-                              ),
-
-                              child: isLoading
-                                  ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child:
-                                CircularProgressIndicator(
-                                  color:
-                                  Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                                  : const Text(
-                                'Log In',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight:
-                                  FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          Center(
-                            child: TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                    const SignupScreen(),
-                                  ),
-                                );
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Enter your password';
+                                }
+                                if (value.length < 6) {
+                                  return 'Password must be at least 6 characters';
+                                }
+                                return null;
                               },
-
-                              child: const Text.rich(
-                                TextSpan(
-                                  text:
-                                  'New to the café? ',
-
-                                  style: TextStyle(
-                                    color:
-                                    Color(0xFF9A6D58),
-                                  ),
-
-                                  children: [
-                                    TextSpan(
-                                      text: 'Sign Up',
-
-                                      style: TextStyle(
-                                        color: Color(
-                                          0xFF713D27,
-                                        ),
-                                        fontWeight:
-                                        FontWeight.bold,
-                                        decoration:
-                                        TextDecoration
-                                            .underline,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            ),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () {},
+                                child: const Text('Forgot password?'),
                               ),
                             ),
+                            AppButton(
+                              label: 'Log in',
+                              loading: isLoading,
+                              onPressed: login,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            cafeRoute(const SignupScreen()),
+                          );
+                        },
+                        child: Text.rich(
+                          TextSpan(
+                            text: 'New to the café? ',
+                            style: AppTextStyles.secondary,
+                            children: [
+                              TextSpan(
+                                text: 'Sign up',
+                                style: AppTextStyles.button.copyWith(
+                                  color: AppColors.brown,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-
-                    Positioned(
-                      top: 15,
-
-                      child: Image.asset(
-                        'lib/assets/images/cat_peek.png',
-                        height: 120,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
