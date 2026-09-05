@@ -11,6 +11,7 @@ The project also includes a dedicated Admin Panel that allows administrators to 
 The main goal of the project was not only to build the required functionality, but also to create a consistent, polished, and production-oriented mobile experience with a clear design system and reusable components.
 
 <img width="331" height="732" alt="Screenshot 2026-09-05 155638" src="https://github.com/user-attachments/assets/84d3ebd0-2522-42f0-82d2-fdd2b9742b7f" />
+<img width="320" height="727" alt="Screenshot 2026-09-05 155700" src="https://github.com/user-attachments/assets/68d3a6d9-7200-424d-85e7-02dff58a0657" />
 
 
 2. Project Overview
