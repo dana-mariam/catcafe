@@ -10,7 +10,8 @@ The project also includes a dedicated Admin Panel that allows administrators to 
 
 The main goal of the project was not only to build the required functionality, but also to create a consistent, polished, and production-oriented mobile experience with a clear design system and reusable components.
 
-📸 Screenshot — ضعي هون صورة حلوة للـ Home Screen كأول صورة بالمشروع.
+<img width="331" height="732" alt="Screenshot 2026-09-05 155638" src="https://github.com/user-attachments/assets/84d3ebd0-2522-42f0-82d2-fdd2b9742b7f" />
+
 
 2. Project Overview
 Project Overview
@@ -26,7 +27,8 @@ Administrators have a separate interface where they can monitor the store, manag
 
 The application uses Firebase as the main backend infrastructure and Firestore as the database for users, products, categories, carts, favorites, and orders.
 
-📸 Screenshot — ضعي صورة Home + صورة Admin Dashboard جنب بعض إذا README بيدعمهم، أو صورة Home فقط هون.
+<img width="320" height="730" alt="Screenshot 2026-09-05 155848" src="https://github.com/user-attachments/assets/99be7662-15ca-43cb-9428-806cfc80bbf3" />
+
 
 3. Main Features
 Main Features
@@ -50,7 +52,7 @@ Order status tracking
 User profile management
 Profile image upload
 
-📸 Screenshot — هون حطي Screenshot فيه Home Screen أو Product Details.
+
 
 🛠️ Admin Features
 Admin authentication and role-based access
@@ -68,9 +70,9 @@ Filter orders by status
 View order details
 Update order status
 
-📸 Screenshot — هون حطي صورة Admin Dashboard.
 
-📸 Screenshot — بعدها صورة Admin Orders Screen.
+<img width="347" height="715" alt="Screenshot 2026-09-05 155921" src="https://github.com/user-attachments/assets/a628e606-7b89-4a6e-ab9d-ee02a091b2c1" />
+
 
 4. Application Flow
 Application Flow
@@ -85,7 +87,7 @@ Admin Login → Admin Dashboard → Products / Categories / Orders → Order Sta
 
 This structure separates the customer experience from the administrative experience while keeping both connected to the same Firebase backend.
 
-📸 Screenshot — هون ممكن تحطي 3 صور صغيرة: Login → Home → Checkout.
+
 
 5. Technology Stack
 Technology Stack
@@ -170,8 +172,6 @@ Empty State
 Product Card
 UI Kit
 
-📸 Screenshot — هون حطي Screenshot للـ Project Structure من Android Studio، زي الصور اللي بعثتيهم.
-
 7. Design System
 Design System
 
@@ -218,7 +218,7 @@ Combines the different design-system elements into the application's global Flut
 
 This allows standard Flutter components to automatically follow the application's visual identity.
 
-📸 Screenshot — هون حطي Screenshot من فولدر core/theme مفتوح، زي الصورة الأولى اللي بعثتيها.
+
 
 8. Reusable Components
 Reusable UI Components
@@ -248,10 +248,6 @@ AppLogo
 A shared logo component used to maintain a consistent Cat Cafe brand identity.
 
 This reusable-component approach makes the UI more consistent and reduces duplicated interface code.
-
-📸 Screenshot — هون حطي Screenshot من فولدر widgets.
-
-📸 Screenshot — بعدها حطي صورة Home فيها Product Cards واضحة.
 
 9. Firebase Architecture
 Firebase Architecture
@@ -291,7 +287,7 @@ The Firestore Security Rules provide an additional security layer by checking th
 
 This means that the Admin interface is not only separated visually, but administrative operations are also protected at the database level.
 
-📸 Screenshot — هون حطي Screenshot من Firebase Authentication أو users collection إذا مسموح تعرضيها بالفيديو/README.
+
 
 11. Firestore Security Rules
 Firestore Security Rules
@@ -336,7 +332,7 @@ Only administrators can delete orders.
 
 This provides an additional security layer between the application and the Firestore database.
 
-📸 Screenshot — هون حطي Screenshot من Firestore Rules، خصوصًا جزء orders وproducts.
+
 
 12. Admin Order Status Management
 Admin Order Status Management
@@ -361,9 +357,6 @@ The update changes the status field and also updates updatedAt using a server ti
 
 Because the Orders screen uses a Firestore stream, the UI can automatically reflect the updated order data after the Firestore document changes.
 
-📸 Screenshot — هون حطي صورة Admin Orders فيها الـ Status واضح.
-
-📸 Screenshot — بعدها صورة الـ Dropdown وهو مفتوح والحالات ظاهرة.
 
 13. Checkout Process
 Checkout Process
@@ -446,9 +439,9 @@ Product information is stored in the products collection in Firestore.
 
 Product images are managed through Cloudinary, while the image URL is stored with the product data.
 
-📸 Screenshot — هون حطي Add Product Screen.
+<img width="330" height="725" alt="Screenshot 2026-09-05 155858" src="https://github.com/user-attachments/assets/6f43c7db-3317-4729-bb66-2328f4eabfa8" />
 
-📸 Screenshot — بعدها Edit Product Screen.
+<img width="347" height="745" alt="Screenshot 2026-09-05 161639" src="https://github.com/user-attachments/assets/07b36a8a-b0c8-487b-b3c6-77903a4e46d5" />
 
 17. Category Management
 Category Management
@@ -461,7 +454,8 @@ The application also checks whether a category already exists before adding it, 
 
 Regular authenticated users can read categories, while only administrators are allowed to modify them.
 
-📸 Screenshot — هون حطي Categories Screen.
+<img width="326" height="721" alt="Screenshot 2026-09-05 155906" src="https://github.com/user-attachments/assets/f585fcb5-4c87-43d5-81d9-f22b52965a60" />
+
 
 18. Cart & Favorites
 Cart and Favorites
@@ -480,9 +474,8 @@ Favorites allow customers to save products they are interested in and access the
 
 Both features are associated with the authenticated user's UID, which keeps each user's data separated from other users.
 
-📸 Screenshot — هون حطي Cart Screen.
+<img width="343" height="716" alt="Screenshot 2026-09-05 155652" src="https://github.com/user-attachments/assets/ee5864f8-fd1c-4edf-92f2-b44b9fbb9d79" />
 
-📸 Screenshot — بعدها Favorites Screen.
 
 19. User Profile
 User Profile
@@ -503,7 +496,8 @@ Profile images are uploaded using Cloudinary, and the resulting image URL is sto
 
 The profile screen also provides the logout functionality.
 
-📸 Screenshot — هون حطي Profile Screen.
+<img width="311" height="700" alt="Screenshot 2026-09-05 155714" src="https://github.com/user-attachments/assets/a4caa50f-5659-4a79-8f38-8e2d02779762" />
+
 
 20. Error, Loading & Empty States
 Loading, Error and Empty States
@@ -521,7 +515,7 @@ Empty search results
 
 These states provide clearer feedback to the user and make the application feel more complete and production-oriented.
 
-📸 Screenshot — إذا عندك Screenshot للـ Empty Cart أو No Orders، حطيه هون.
+
 
 21. UI/UX Approach
 UI/UX Approach
@@ -621,9 +615,7 @@ The administrator can update the order status.
 The new status is stored in Firestore.
 The customer can then see the updated order status.
 
-📸 Screenshot — هون حطي Admin Dashboard.
 
-📸 Screenshot — بعدها Admin Orders.
 
 26. Project Highlights
 Project Highlights
