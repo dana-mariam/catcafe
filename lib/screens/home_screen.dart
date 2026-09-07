@@ -6,6 +6,7 @@ import '../admin/edit_product_screen.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_radius.dart';
 import '../core/theme/app_shadows.dart';
+import '../core/theme/app_spacing.dart';
 import '../core/theme/app_text_styles.dart';
 import '../features/cart/services/cart_service.dart';
 import '../user/product_details_screen.dart';
@@ -16,9 +17,14 @@ import '../widgets/product_card.dart';
 import '../widgets/ui_kit.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, this.onOpenProfile});
+  const HomeScreen({
+    super.key,
+    this.onOpenProfile,
+    this.onOpenAdopt,
+  });
 
   final VoidCallback? onOpenProfile;
+  final VoidCallback? onOpenAdopt;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -31,6 +37,33 @@ class _HomeScreenState extends State<HomeScreen> {
   String searchQuery = '';
   final TextEditingController searchController = TextEditingController();
   final CartService _cartService = CartService();
+
+  static const _residents = [
+    {
+      'name': 'Milo',
+      'note': 'Naps by the pastry case',
+      'image':
+      'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800',
+    },
+    {
+      'name': 'Luna',
+      'note': 'Claims the sunny window',
+      'image':
+      'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=800',
+    },
+    {
+      'name': 'Oliver',
+      'note': 'Supervises every pour',
+      'image':
+      'https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=800',
+    },
+    {
+      'name': 'Bella',
+      'note': 'Greets the afternoon crowd',
+      'image':
+      'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=800',
+    },
+  ];
 
   @override
   void initState() {
@@ -174,6 +207,33 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Map<String, dynamic> _data(QueryDocumentSnapshot doc) {
+    return doc.data() as Map<String, dynamic>;
+  }
+
+  String? _badgeFor(Map<String, dynamic> data) {
+    final quantity = (data['quantity'] as num?) ?? 0;
+    if (quantity > 0 && quantity <= 5) return 'Limited';
+    final createdAt = data['createdAt'];
+    if (createdAt is Timestamp) {
+      final age = DateTime.now().difference(createdAt.toDate());
+      if (age.inDays <= 14) return 'New';
+    }
+    return null;
+  }
+
+  QueryDocumentSnapshot _pickFeatured(List<QueryDocumentSnapshot> products) {
+    QueryDocumentSnapshot? withImage;
+    for (final doc in products) {
+      final data = _data(doc);
+      final qty = (data['quantity'] as num?) ?? 0;
+      final image = data['imageUrl']?.toString() ?? '';
+      if (qty > 0 && image.isNotEmpty) return doc;
+      if (withImage == null && image.isNotEmpty) withImage = doc;
+    }
+    return withImage ?? products.first;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -194,9 +254,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
             final products = productSnapshot.data?.docs ?? [];
             final query = searchQuery.trim().toLowerCase();
+            final browsingAll = selectedCategoryId == 'all' && query.isEmpty;
 
             final filteredProducts = products.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
+              final data = _data(doc);
               final matchesCategory = selectedCategoryId == 'all' ||
                   data['categoryId'] == selectedCategoryId;
               final name = data['name']?.toString().toLowerCase() ?? '';
@@ -204,86 +265,157 @@ class _HomeScreenState extends State<HomeScreen> {
               return matchesCategory && matchesSearch;
             }).toList();
 
+            QueryDocumentSnapshot? featured;
+            List<QueryDocumentSnapshot> favoritesRail = const [];
+            List<QueryDocumentSnapshot> menuGrid = filteredProducts;
+
+            if (browsingAll && products.isNotEmpty) {
+              featured = _pickFeatured(products);
+              final remaining = products.where((doc) => doc.id != featured!.id).toList();
+              inStockFirst(remaining);
+              favoritesRail = remaining.take(6).toList();
+              final railIds = favoritesRail.map((doc) => doc.id).toSet();
+              menuGrid = remaining.where((doc) => !railIds.contains(doc.id)).toList();
+            }
+
             return CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(child: _buildHeader()),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.page,
+                      AppSpacing.sm,
+                      AppSpacing.page,
+                      AppSpacing.xl,
+                    ),
                     child: AppSearchField(
                       controller: searchController,
                       onChanged: (value) => setState(() => searchQuery = value),
                     ),
                   ),
                 ),
-                if (products.isNotEmpty)
+                if (featured != null)
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                      child: _buildHero(products.first),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.page,
+                        0,
+                        AppSpacing.page,
+                        AppSpacing.xxl,
+                      ),
+                      child: _buildHero(featured),
                     ),
                   ),
-                const SliverToBoxAdapter(
+                SliverToBoxAdapter(
                   child: SectionHeader(
-                    title: 'Explore the menu',
-                    subtitle: 'Coffee, treats, and cozy favorites',
+                    eyebrow: 'The menu',
+                    title: 'What are you in the mood for?',
+                    subtitle: 'Coffee, pastries, and quiet little indulgences',
                   ),
                 ),
                 SliverToBoxAdapter(child: _buildCategories()),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 14),
-                    child: SectionHeader(
-                      title: selectedCategoryId == 'all' ? 'Popular today' : 'Menu items',
-                      subtitle: query.isEmpty
-                          ? 'Fresh from the café'
-                          : 'Search results',
-                      trailing: Text(
-                        '${filteredProducts.length}',
-                        style: AppTextStyles.caption,
+                if (favoritesRail.isNotEmpty) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.section),
+                      child: SectionHeader(
+                        eyebrow: 'From the bar',
+                        title: 'Cat-approved favorites',
+                        subtitle: "Today's little indulgence",
                       ),
                     ),
                   ),
-                ),
-                if (filteredProducts.isEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: EmptyState(
-                      icon: Icons.local_cafe_outlined,
-                      title: query.isNotEmpty ? 'No matches' : 'Nothing here yet',
-                      message: query.isNotEmpty
-                          ? 'Try a different name or category.'
-                          : 'Try another category.',
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 262,
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: favoritesRail.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          return _buildRailProduct(context, favoritesRail[index]);
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+                if (browsingAll)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 28, 20, 8),
+                      child: _buildCafeStory(),
+                    ),
+                  ),
+                if (!browsingAll || menuGrid.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 20, bottom: 14),
+                      child: SectionHeader(
+                        eyebrow: query.isNotEmpty ? 'Search' : 'House menu',
+                        title: selectedCategoryId == 'all'
+                            ? (query.isEmpty ? 'Something cozy for you' : 'Results')
+                            : 'Menu items',
+                        subtitle: query.isEmpty
+                            ? 'Made with love, served with purrs'
+                            : 'Matching pours and plates',
+                        trailing: Text(
+                          '${(browsingAll ? menuGrid : filteredProducts).length}',
+                          style: AppTextStyles.caption,
+                        ),
+                      ),
+                    ),
+                  ),
+                if (products.isEmpty ||
+                    (!browsingAll && filteredProducts.isEmpty))
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+                      child: EmptyState(
+                        icon: Icons.local_cafe_outlined,
+                        assetPath: 'lib/assets/images/cat_logo.png',
+                        title: query.isNotEmpty
+                            ? 'No pour by that name'
+                            : products.isEmpty
+                            ? 'The kitchen is quiet'
+                            : 'Nothing on this shelf yet',
+                        message: query.isNotEmpty
+                            ? 'Try another name, or browse the full menu.'
+                            : products.isEmpty
+                            ? 'The menu will appear here when the café is ready.'
+                            : 'Another category may have what you are craving.',
+                      ),
                     ),
                   )
-                else
+                else if ((browsingAll ? menuGrid : filteredProducts).isNotEmpty)
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                     sliver: SliverLayoutBuilder(
                       builder: (context, constraints) {
                         final width = constraints.crossAxisExtent;
                         final columns = width >= 720 ? 3 : 2;
+                        final items = browsingAll ? menuGrid : filteredProducts;
                         return SliverGrid(
                           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: columns,
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
-                            childAspectRatio: 0.68,
+                            mainAxisExtent: 330,
                           ),
                           delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              return _buildGridProduct(
-                                context,
-                                filteredProducts[index],
-                              );
+                                (context, index) {
+                              return _buildGridProduct(context, items[index]);
                             },
-                            childCount: filteredProducts.length,
+                            childCount: items.length,
                           ),
                         );
                       },
                     ),
-                  ),
+                  )
+                else
+                  const SliverToBoxAdapter(child: SizedBox(height: 32)),
               ],
             );
           },
@@ -292,22 +424,33 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void inStockFirst(List<QueryDocumentSnapshot> products) {
+    products.sort((a, b) {
+      final aQty = (_data(a)['quantity'] as num?) ?? 0;
+      final bQty = (_data(b)['quantity'] as num?) ?? 0;
+      final aStock = aQty > 0 ? 0 : 1;
+      final bStock = bQty > 0 ? 0 : 1;
+      return aStock.compareTo(bStock);
+    });
+  }
+
   Widget _buildHeader() {
     final hour = DateTime.now().hour;
     final greeting = hour < 12
         ? 'Good morning'
         : hour < 17
-            ? 'Good afternoon'
-            : 'Good evening';
+        ? 'Good afternoon'
+        : 'Good evening';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 16, 8),
+      padding: const EdgeInsets.fromLTRB(20, 16, 16, 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Image.asset(
             'lib/assets/images/cat_logo.png',
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             errorBuilder: (_, __, ___) => const Icon(
               Icons.local_cafe_rounded,
               color: AppColors.brown,
@@ -318,12 +461,22 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(greeting, style: AppTextStyles.caption),
+                Text(
+                  '$greeting · CAT CAFÉ',
+                  style: AppTextStyles.overline,
+                ),
+                const SizedBox(height: 2),
                 Text(
                   'Purr & Pour',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.pageTitle.copyWith(fontSize: 22),
+                  style: AppTextStyles.pageTitle.copyWith(fontSize: 24),
+                ),
+                Text(
+                  'Your cozy little corner',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(letterSpacing: 0.2),
                 ),
               ],
             ),
@@ -338,18 +491,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHero(QueryDocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = _data(doc);
     final name = data['name']?.toString() ?? '';
-    final description = data['description']?.toString() ?? '';
     final imageUrl = data['imageUrl']?.toString() ?? '';
     final price = (data['price'] as num?) ?? 0;
     final quantity = (data['quantity'] as num?) ?? 0;
     final outOfStock = quantity <= 0;
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final heroHeight = screenHeight < 680 ? 210.0 : 246.0;
 
     return GestureDetector(
       onTap: () => openProductDetails(context, doc),
       child: Container(
-        height: 210,
+        height: heroHeight,
         decoration: BoxDecoration(
           borderRadius: AppRadius.extraLarge,
           boxShadow: AppShadows.soft,
@@ -366,86 +520,103 @@ class _HomeScreenState extends State<HomeScreen> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withValues(alpha: 0.05),
-                      Colors.black.withValues(alpha: 0.62),
+                      AppColors.espresso.withValues(alpha: 0.12),
+                      AppColors.espresso.withValues(alpha: 0.28),
+                      AppColors.espresso.withValues(alpha: 0.78),
                     ],
+                    stops: const [0, 0.42, 1],
                   ),
                 ),
               ),
               Positioned(
-                top: 14,
-                left: 14,
+                top: 16,
+                left: 16,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: AppColors.surface.withValues(alpha: 0.94),
                     borderRadius: AppRadius.pillRadius,
                   ),
                   child: Text(
-                    "Today's pick",
-                    style: AppTextStyles.caption.copyWith(
+                    "TODAY'S PICK",
+                    style: AppTextStyles.overline.copyWith(
                       color: AppColors.brown,
-                      letterSpacing: 0.3,
+                      fontSize: 10,
                     ),
                   ),
                 ),
               ),
               if (isAdmin)
                 Positioned(
-                  top: 8,
-                  right: 8,
+                  top: 10,
+                  right: 10,
                   child: _buildAdminMenu(context, doc, dark: true),
                 ),
               Positioned(
-                left: 16,
-                right: 16,
-                bottom: 16,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                left: 18,
+                right: 18,
+                bottom: 18,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.pageTitle.copyWith(
-                              color: Colors.white,
-                              fontSize: 22,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            description.isEmpty
-                                ? 'A cozy favorite from our menu.'
-                                : description,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.secondary.copyWith(
-                              color: Colors.white70,
-                            ),
-                          ),
-                          if (outOfStock) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              'Out of stock',
-                              style: AppTextStyles.caption.copyWith(
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ],
+                    Text(
+                      'Coffee tastes better with company.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.display.copyWith(
+                        color: Colors.white,
+                        fontSize: screenHeight < 680 ? 22 : 26,
+                        height: 1.15,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      '\$${price.toStringAsFixed(2)}',
-                      style: AppTextStyles.price.copyWith(
-                        color: Colors.white,
-                        fontSize: 20,
-                      ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.product.copyWith(
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                outOfStock
+                                    ? 'Out of stock'
+                                    : '\$${price.toStringAsFixed(2)} · Meet your new favorite brew',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.secondary.copyWith(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: AppRadius.pillRadius,
+                          ),
+                          child: Text(
+                            'Taste it',
+                            style: AppTextStyles.button.copyWith(
+                              color: AppColors.brown,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -459,7 +630,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCategories() {
     return SizedBox(
-      height: 56,
+      height: 64,
       child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('categories')
@@ -469,7 +640,7 @@ class _HomeScreenState extends State<HomeScreen> {
           final categories = snapshot.data?.docs ?? [];
           return ListView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             children: [
               AppChip(
                 label: 'All',
@@ -505,30 +676,134 @@ class _HomeScreenState extends State<HomeScreen> {
     if (value.contains('dessert') || value.contains('cake') || value.contains('sweet')) {
       return Icons.cake_outlined;
     }
-    if (value.contains('drink') || value.contains('juice')) {
+    if (value.contains('pastry') || value.contains('pastries') || value.contains('bakery')) {
+      return Icons.bakery_dining_outlined;
+    }
+    if (value.contains('drink') || value.contains('juice') || value.contains('cold')) {
       return Icons.local_drink_outlined;
     }
     if (value.contains('tea')) {
       return Icons.emoji_food_beverage_outlined;
     }
+    if (value.contains('cat')) {
+      return Icons.pets_rounded;
+    }
     return Icons.restaurant_menu_rounded;
   }
 
+  Widget _buildCafeStory() {
+    final cat = _residents[DateTime.now().day % _residents.length];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.overlay,
+        borderRadius: AppRadius.extraLarge,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('THE HOUSE', style: AppTextStyles.overline),
+          const SizedBox(height: 6),
+          Text(
+            'Made for coffee lovers & cat people',
+            style: AppTextStyles.section.copyWith(fontSize: 17),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'A quiet table, a warm cup, and a few residents who run the place.',
+            style: AppTextStyles.secondary,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: AppRadius.medium,
+                child: Image.network(
+                  cat['image']!,
+                  width: 64,
+                  height: 64,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 64,
+                    height: 64,
+                    color: AppColors.soft,
+                    child: const Icon(Icons.pets_rounded, color: AppColors.brown),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Cat of the day', style: AppTextStyles.caption),
+                    Text(cat['name']!, style: AppTextStyles.product),
+                    Text(
+                      cat['note']!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.secondary.copyWith(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              if (widget.onOpenAdopt != null)
+                TextButton(
+                  onPressed: widget.onOpenAdopt,
+                  child: const Text('Meet them'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildGridProduct(BuildContext context, QueryDocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    return _buildProductCard(context, doc, rail: false);
+  }
+
+  Widget _buildRailProduct(BuildContext context, QueryDocumentSnapshot doc) {
+    return _buildProductCard(context, doc, rail: true);
+  }
+
+  Widget _buildProductCard(
+      BuildContext context,
+      QueryDocumentSnapshot doc, {
+        required bool rail,
+      }) {
+    final data = _data(doc);
     final name = data['name']?.toString() ?? '';
-    final description = data['description']?.toString() ?? '';
     final imageUrl = data['imageUrl']?.toString() ?? '';
     final price = (data['price'] as num?) ?? 0;
     final quantity = (data['quantity'] as num?) ?? 0;
     final outOfStock = quantity <= 0;
+    final subtitle = data['categoryName']?.toString() ??
+        data['category']?.toString() ??
+        '';
+    final badge = _badgeFor(data);
 
     if (isAdmin) {
+      if (rail) {
+        return ProductRailCard(
+          name: name,
+          price: price,
+          imageUrl: imageUrl,
+          subtitle: subtitle,
+          badge: badge,
+          outOfStock: outOfStock,
+          onTap: () => openProductDetails(context, doc),
+          adminMenu: _buildAdminMenu(context, doc),
+        );
+      }
       return ProductCard(
         name: name,
         price: price,
         imageUrl: imageUrl,
-        description: description,
+        subtitle: subtitle,
+        badge: badge,
         outOfStock: outOfStock,
         onTap: () => openProductDetails(context, doc),
         adminMenu: _buildAdminMenu(context, doc),
@@ -539,11 +814,29 @@ class _HomeScreenState extends State<HomeScreen> {
       future: isProductFavorite(doc.id),
       builder: (context, snapshot) {
         final isFavorite = snapshot.data ?? false;
+        if (rail) {
+          return ProductRailCard(
+            name: name,
+            price: price,
+            imageUrl: imageUrl,
+            subtitle: subtitle,
+            badge: badge,
+            outOfStock: outOfStock,
+            isFavorite: isFavorite,
+            onTap: () => openProductDetails(context, doc),
+            onFavorite: () async {
+              await toggleFavorite(doc.id);
+              if (mounted) setState(() {});
+            },
+            onAdd: () => addProductToCart(doc),
+          );
+        }
         return ProductCard(
           name: name,
           price: price,
           imageUrl: imageUrl,
-          description: description,
+          subtitle: subtitle,
+          badge: badge,
           outOfStock: outOfStock,
           isFavorite: isFavorite,
           onTap: () => openProductDetails(context, doc),
@@ -558,10 +851,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildAdminMenu(
-    BuildContext context,
-    QueryDocumentSnapshot doc, {
-    bool dark = false,
-  }) {
+      BuildContext context,
+      QueryDocumentSnapshot doc, {
+        bool dark = false,
+      }) {
     return Material(
       color: dark ? Colors.white : AppColors.cream,
       shape: const CircleBorder(),
