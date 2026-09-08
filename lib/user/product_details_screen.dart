@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../animations/cart/add_to_cart_animation.dart';
 import '../animations/product/product_animations.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_radius.dart';
@@ -32,6 +33,12 @@ class _ProductDetailsScreenState
   bool isFavorite = false;
   bool isAddingToCart = false;
 
+  // Position of the product image.
+  final GlobalKey _productImageKey = GlobalKey();
+
+  // Position of the cart icon.
+  final GlobalKey _cartIconKey = GlobalKey();
+
   @override
   Widget build(BuildContext context) {
     final name =
@@ -54,8 +61,7 @@ class _ProductDetailsScreenState
     final quantity =
         (widget.product['quantity'] as num?) ?? 0;
 
-    final outOfStock =
-        quantity <= 0;
+    final outOfStock = quantity <= 0;
 
     return Scaffold(
       // ==========================================================
@@ -78,20 +84,17 @@ class _ProductDetailsScreenState
             children: [
               Expanded(
                 child: Column(
-                  mainAxisSize:
-                  MainAxisSize.min,
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment:
                   CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Price',
-                      style:
-                      AppTextStyles.caption,
+                      style: AppTextStyles.caption,
                     ),
                     Text(
                       '\$${price.toStringAsFixed(2)}',
-                      style:
-                      AppTextStyles.price.copyWith(
+                      style: AppTextStyles.price.copyWith(
                         fontSize: 22,
                       ),
                     ),
@@ -107,15 +110,12 @@ class _ProductDetailsScreenState
                   label: outOfStock
                       ? 'Out of stock'
                       : 'Add to cart',
-                  loading:
-                  isAddingToCart,
+                  loading: isAddingToCart,
                   icon: outOfStock
                       ? Icons.remove_shopping_cart_outlined
                       : Icons.shopping_bag_outlined,
                   onPressed:
-                  outOfStock
-                      ? null
-                      : addToCart,
+                  outOfStock ? null : addToCart,
                 ),
               ),
             ],
@@ -129,8 +129,7 @@ class _ProductDetailsScreenState
 
       body: SafeArea(
         child: CustomScrollView(
-          physics:
-          const BouncingScrollPhysics(),
+          physics: const BouncingScrollPhysics(),
           slivers: [
             // ====================================================
             // APP BAR
@@ -140,8 +139,7 @@ class _ProductDetailsScreenState
               pinned: true,
 
               leading: Padding(
-                padding:
-                const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(8),
                 child: AppIconButton(
                   icon:
                   Icons.arrow_back_ios_new_rounded,
@@ -158,42 +156,24 @@ class _ProductDetailsScreenState
                 ),
               ),
 
+              // ==================================================
+              // CART ICON
+              // ==================================================
+
               actions: [
                 Padding(
-                  padding:
-                  const EdgeInsets.only(
+                  padding: const EdgeInsets.only(
                     right: 8,
                   ),
-                  child: AnimatedSwitcher(
-                    duration:
-                    const Duration(
-                      milliseconds: 250,
-                    ),
-                    transitionBuilder:
-                        (child, animation) {
-                      return ScaleTransition(
-                        scale: CurvedAnimation(
-                          parent: animation,
-                          curve:
-                          Curves.easeOutBack,
-                        ),
-                        child: child,
-                      );
+                  child: AppIconButton(
+                    key: _cartIconKey,
+                    icon:
+                    Icons.shopping_cart_outlined,
+                    onPressed: () {
+                      // Keep the existing cart
+                      // navigation logic here
+                      // if your app already has one.
                     },
-                    child: AppIconButton(
-                      key: ValueKey(
-                        isFavorite,
-                      ),
-                      icon: isFavorite
-                          ? Icons.favorite_rounded
-                          : Icons.favorite_border_rounded,
-                      onPressed: () {
-                        setState(() {
-                          isFavorite =
-                          !isFavorite;
-                        });
-                      },
-                    ),
                   ),
                 ),
               ],
@@ -205,8 +185,7 @@ class _ProductDetailsScreenState
 
             SliverToBoxAdapter(
               child: Padding(
-                padding:
-                const EdgeInsets.fromLTRB(
+                padding: const EdgeInsets.fromLTRB(
                   20,
                   8,
                   20,
@@ -221,89 +200,91 @@ class _ProductDetailsScreenState
                     // ==========================================
 
                     ProductImageEntrance(
-                      child: AspectRatio(
-                        aspectRatio: 1.05,
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: ClipRRect(
-                                borderRadius:
-                                AppRadius.extraLarge,
-                                child:
-                                ProductImage(
-                                  imageUrl:
-                                  imageUrl,
-                                ),
-                              ),
-                            ),
-
-                            if (outOfStock)
-                              Positioned(
-                                left: 12,
-                                top: 12,
-                                child: Container(
-                                  padding:
-                                  const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  decoration:
-                                  BoxDecoration(
-                                    color: Colors.black
-                                        .withValues(
-                                      alpha: 0.7,
-                                    ),
-                                    borderRadius:
-                                    AppRadius.pillRadius,
-                                  ),
-                                  child: Text(
-                                    'Out of stock',
-                                    style:
-                                    AppTextStyles.caption
-                                        .copyWith(
-                                      color:
-                                      Colors.white,
-                                    ),
+                      child: Container(
+                        key: _productImageKey,
+                        child: AspectRatio(
+                          aspectRatio: 1.05,
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                child: ClipRRect(
+                                  borderRadius:
+                                  AppRadius.extraLarge,
+                                  child: ProductImage(
+                                    imageUrl: imageUrl,
                                   ),
                                 ),
                               ),
 
-                            if (categoryName
-                                .isNotEmpty)
-                              Positioned(
-                                left: 12,
-                                bottom: 12,
-                                child: Container(
-                                  padding:
-                                  const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  decoration:
-                                  BoxDecoration(
-                                    color: AppColors
-                                        .surface
-                                        .withValues(
-                                      alpha: 0.94,
+                              if (outOfStock)
+                                Positioned(
+                                  left: 12,
+                                  top: 12,
+                                  child: Container(
+                                    padding:
+                                    const EdgeInsets
+                                        .symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
                                     ),
-                                    borderRadius:
-                                    AppRadius.pillRadius,
-                                  ),
-                                  child: Text(
-                                    categoryName,
-                                    style:
-                                    AppTextStyles.caption,
+                                    decoration:
+                                    BoxDecoration(
+                                      color: Colors.black
+                                          .withValues(
+                                        alpha: 0.7,
+                                      ),
+                                      borderRadius:
+                                      AppRadius
+                                          .pillRadius,
+                                    ),
+                                    child: Text(
+                                      'Out of stock',
+                                      style: AppTextStyles
+                                          .caption
+                                          .copyWith(
+                                        color: Colors.white,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                          ],
+
+                              if (categoryName.isNotEmpty)
+                                Positioned(
+                                  left: 12,
+                                  bottom: 12,
+                                  child: Container(
+                                    padding:
+                                    const EdgeInsets
+                                        .symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                    decoration:
+                                    BoxDecoration(
+                                      color: AppColors
+                                          .surface
+                                          .withValues(
+                                        alpha: 0.94,
+                                      ),
+                                      borderRadius:
+                                      AppRadius
+                                          .pillRadius,
+                                    ),
+                                    child: Text(
+                                      categoryName,
+                                      style: AppTextStyles
+                                          .caption,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
 
                     const SizedBox(
-                      height:
-                      AppSpacing.xxl,
+                      height: AppSpacing.xxl,
                     ),
 
                     // ==========================================
@@ -311,8 +292,7 @@ class _ProductDetailsScreenState
                     // ==========================================
 
                     ProductContentAnimation(
-                      delay:
-                      const Duration(
+                      delay: const Duration(
                         milliseconds: 100,
                       ),
                       child: Text(
@@ -329,13 +309,11 @@ class _ProductDetailsScreenState
                     // ==========================================
 
                     ProductContentAnimation(
-                      delay:
-                      const Duration(
+                      delay: const Duration(
                         milliseconds: 170,
                       ),
                       child: Text(
-                        categoryName
-                            .isNotEmpty
+                        categoryName.isNotEmpty
                             ? categoryName
                             : 'Café special',
                         style:
@@ -344,8 +322,7 @@ class _ProductDetailsScreenState
                     ),
 
                     const SizedBox(
-                      height:
-                      AppSpacing.xl,
+                      height: AppSpacing.xl,
                     ),
 
                     // ==========================================
@@ -353,25 +330,19 @@ class _ProductDetailsScreenState
                     // ==========================================
 
                     ProductContentAnimation(
-                      delay:
-                      const Duration(
+                      delay: const Duration(
                         milliseconds: 240,
                       ),
                       child: Container(
-                        width:
-                        double.infinity,
+                        width: double.infinity,
                         padding:
                         const EdgeInsets.all(18),
-                        decoration:
-                        BoxDecoration(
-                          color:
-                          AppColors.surface,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
                           borderRadius:
                           AppRadius.extraLarge,
-                          border:
-                          Border.all(
-                            color:
-                            AppColors.border,
+                          border: Border.all(
+                            color: AppColors.border,
                           ),
                         ),
                         child: Column(
@@ -380,24 +351,19 @@ class _ProductDetailsScreenState
                           children: [
                             Text(
                               'About this product',
-                              style:
-                              AppTextStyles.section
+                              style: AppTextStyles.section
                                   .copyWith(
                                 fontSize: 16,
                               ),
                             ),
 
-                            const SizedBox(
-                              height: 8,
-                            ),
+                            const SizedBox(height: 8),
 
                             Text(
-                              description
-                                  .isEmpty
+                              description.isEmpty
                                   ? 'A delicious choice from our Cat Cafe menu, prepared with care for your cozy café moment.'
                                   : description,
-                              style:
-                              AppTextStyles.secondary
+                              style: AppTextStyles.secondary
                                   .copyWith(
                                 height: 1.5,
                               ),
@@ -407,17 +373,14 @@ class _ProductDetailsScreenState
                       ),
                     ),
 
-                    const SizedBox(
-                      height: 12,
-                    ),
+                    const SizedBox(height: 12),
 
                     // ==========================================
                     // INFO CARDS
                     // ==========================================
 
                     ProductContentAnimation(
-                      delay:
-                      const Duration(
+                      delay: const Duration(
                         milliseconds: 320,
                       ),
                       child: Row(
@@ -432,9 +395,7 @@ class _ProductDetailsScreenState
                             ),
                           ),
 
-                          const SizedBox(
-                            width: 12,
-                          ),
+                          const SizedBox(width: 12),
 
                           Expanded(
                             child: _infoCard(
@@ -468,12 +429,10 @@ class _ProductDetailsScreenState
       IconData icon,
       ) {
     return Container(
-      padding:
-      const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius:
-        AppRadius.large,
+        borderRadius: AppRadius.large,
         border: Border.all(
           color: AppColors.border,
         ),
@@ -492,8 +451,7 @@ class _ProductDetailsScreenState
 
           Text(
             title,
-            style:
-            AppTextStyles.caption,
+            style: AppTextStyles.caption,
           ),
 
           const SizedBox(height: 4),
@@ -501,10 +459,8 @@ class _ProductDetailsScreenState
           Text(
             value,
             maxLines: 1,
-            overflow:
-            TextOverflow.ellipsis,
-            style:
-            AppTextStyles.product,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.product,
           ),
         ],
       ),
@@ -525,19 +481,41 @@ class _ProductDetailsScreenState
     try {
       final success =
       await _cartService.addToCart(
-        productId:
-        widget.productId,
-        product:
-        widget.product,
+        productId: widget.productId,
+        product: widget.product,
       );
 
       if (!mounted) return;
 
-      _showMessage(
-        success
-            ? 'Added to your cart'
-            : 'This product is out of stock.',
-      );
+      if (success) {
+        // Wait one frame so Flutter has
+        // the correct positions of both keys.
+        await Future.delayed(
+          const Duration(milliseconds: 50),
+        );
+
+        if (!mounted) return;
+
+        // Fly product image to cart icon.
+        await AddToCartAnimation.play(
+          context: context,
+          sourceKey: _productImageKey,
+          targetKey: _cartIconKey,
+          imageUrl:
+          widget.product['imageUrl']?.toString() ??
+              '',
+        );
+
+        if (!mounted) return;
+
+        _showMessage(
+          'Added to your cart',
+        );
+      } else {
+        _showMessage(
+          'This product is out of stock.',
+        );
+      }
     } catch (e) {
       if (!mounted) return;
 
@@ -561,8 +539,7 @@ class _ProductDetailsScreenState
   // ==============================================================
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
       ),
