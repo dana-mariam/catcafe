@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../animations/adoption/adoption_animations.dart';
+
 class AdoptionScreen extends StatelessWidget {
   const AdoptionScreen({super.key});
 
@@ -56,6 +58,10 @@ class AdoptionScreen extends StatelessWidget {
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
+            // ====================================================
+            // HEADER
+            // ====================================================
+
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -68,6 +74,10 @@ class AdoptionScreen extends StatelessWidget {
               ),
             ),
 
+            // ====================================================
+            // INTRO CARD
+            // ====================================================
+
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -76,9 +86,15 @@ class AdoptionScreen extends StatelessWidget {
                   20,
                   16,
                 ),
-                child: _introCard(),
+                child: AdoptionIntroAnimation(
+                  child: _introCard(),
+                ),
               ),
             ),
+
+            // ====================================================
+            // CAT CARDS
+            // ====================================================
 
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(
@@ -96,13 +112,22 @@ class AdoptionScreen extends StatelessWidget {
                       padding: const EdgeInsets.only(
                         bottom: 16,
                       ),
-                      child: _catCard(
-                        context,
-                        name: cat['name']!,
-                        age: cat['age']!,
-                        gender: cat['gender']!,
-                        image: cat['image']!,
-                        description: cat['description']!,
+                      child: AdoptionCardAnimation(
+                        delay: Duration(
+                          milliseconds: 400 + (index * 170),
+                        ),
+                        fromRight: index.isEven,
+                        child: _catCard(
+                          context,
+                          name: cat['name']!,
+                          age: cat['age']!,
+                          gender: cat['gender']!,
+                          image: cat['image']!,
+                          description: cat['description']!,
+                          imageDelay: Duration(
+                            milliseconds: 520 + (index * 170),
+                          ),
+                        ),
                       ),
                     );
                   },
@@ -124,51 +149,59 @@ class AdoptionScreen extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'FIND A FRIEND',
-                style: TextStyle(
-                  color: lightBrown,
-                  fontSize: 8,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 2,
+          child: AdoptionHeaderAnimation(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'FIND A FRIEND',
+                  style: TextStyle(
+                    color: lightBrown,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 2,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Adopt a Cat',
-                style: TextStyle(
-                  color: brown,
-                  fontSize: 27,
-                  fontWeight: FontWeight.w900,
-                  fontFamily: 'serif',
+
+                const SizedBox(height: 4),
+
+                const Text(
+                  'Adopt a Cat',
+                  style: TextStyle(
+                    color: brown,
+                    fontSize: 27,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: 'serif',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                'A little love is waiting for you.',
-                style: TextStyle(
-                  color: lightBrown.withOpacity(0.9),
-                  fontSize: 10,
+
+                const SizedBox(height: 3),
+
+                Text(
+                  'A little love is waiting for you.',
+                  style: TextStyle(
+                    color: lightBrown.withOpacity(0.9),
+                    fontSize: 10,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
 
-        Container(
-          width: 45,
-          height: 45,
-          decoration: const BoxDecoration(
-            color: cardColor,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.pets_rounded,
-            color: brown,
-            size: 21,
+        AdoptionHeaderIconAnimation(
+          child: Container(
+            width: 45,
+            height: 45,
+            decoration: const BoxDecoration(
+              color: cardColor,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.pets_rounded,
+              color: brown,
+              size: 21,
+            ),
           ),
         ),
       ],
@@ -217,7 +250,9 @@ class AdoptionScreen extends StatelessWidget {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
+
                 SizedBox(height: 4),
+
                 Text(
                   'Meet our lovely cats and find your new best friend.',
                   style: TextStyle(
@@ -245,6 +280,7 @@ class AdoptionScreen extends StatelessWidget {
         required String gender,
         required String image,
         required String description,
+        required Duration imageDelay,
       }) {
     return Container(
       decoration: BoxDecoration(
@@ -275,21 +311,24 @@ class AdoptionScreen extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               height: 205,
-              child: Image.network(
-                image,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) {
-                  return Container(
-                    color: softBrown,
-                    child: const Center(
-                      child: Icon(
-                        Icons.pets_rounded,
-                        color: lightBrown,
-                        size: 45,
+              child: AdoptionImageAnimation(
+                delay: imageDelay,
+                child: Image.network(
+                  image,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) {
+                    return Container(
+                      color: softBrown,
+                      child: const Center(
+                        child: Icon(
+                          Icons.pets_rounded,
+                          color: lightBrown,
+                          size: 45,
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
           ),
@@ -348,7 +387,9 @@ class AdoptionScreen extends StatelessWidget {
                       Icons.cake_outlined,
                       age,
                     ),
+
                     const SizedBox(width: 7),
+
                     _infoChip(
                       gender == 'Male'
                           ? Icons.male_rounded
@@ -406,7 +447,9 @@ class AdoptionScreen extends StatelessWidget {
                           Icons.pets_rounded,
                           size: 16,
                         ),
+
                         SizedBox(width: 7),
+
                         Text(
                           'MEET ME',
                           style: TextStyle(
@@ -451,7 +494,9 @@ class AdoptionScreen extends StatelessWidget {
             color: lightBrown,
             size: 13,
           ),
+
           const SizedBox(width: 5),
+
           Text(
             text,
             style: const TextStyle(
