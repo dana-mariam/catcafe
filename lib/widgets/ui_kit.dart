@@ -7,11 +7,13 @@ class SectionHeader extends StatelessWidget {
   const SectionHeader({
     super.key,
     required this.title,
+    this.eyebrow,
     this.subtitle,
     this.trailing,
   });
 
   final String title;
+  final String? eyebrow;
   final String? subtitle;
   final Widget? trailing;
 
@@ -26,10 +28,27 @@ class SectionHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppTextStyles.section),
-                if (subtitle != null) ...[
+                if (eyebrow != null && eyebrow!.isNotEmpty) ...[
+                  Text(
+                    eyebrow!,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.brown,
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(subtitle!, style: AppTextStyles.secondary),
+                ],
+                Text(
+                  title,
+                  style: AppTextStyles.section,
+                ),
+                if (subtitle != null && subtitle!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle!,
+                    style: AppTextStyles.secondary,
+                  ),
                 ],
               ],
             ),
@@ -62,7 +81,10 @@ class QuantitySelector extends StatelessWidget {
         Container(
           width: 36,
           alignment: Alignment.center,
-          child: Text('$quantity', style: AppTextStyles.product),
+          child: Text(
+            '$quantity',
+            style: AppTextStyles.product,
+          ),
         ),
         _btn(Icons.add_rounded, onIncrease),
       ],
@@ -79,7 +101,11 @@ class QuantitySelector extends StatelessWidget {
         child: SizedBox(
           width: 32,
           height: 32,
-          child: Icon(icon, size: 16, color: AppColors.brown),
+          child: Icon(
+            icon,
+            size: 16,
+            color: AppColors.brown,
+          ),
         ),
       ),
     );
@@ -87,7 +113,10 @@ class QuantitySelector extends StatelessWidget {
 }
 
 class OrderStatusBadge extends StatelessWidget {
-  const OrderStatusBadge({super.key, required this.status});
+  const OrderStatusBadge({
+    super.key,
+    required this.status,
+  });
 
   final String status;
 
@@ -95,20 +124,27 @@ class OrderStatusBadge extends StatelessWidget {
     switch (status.toLowerCase()) {
       case 'pending':
         return 'Pending';
+
       case 'processing':
       case 'preparing':
         return 'Processing';
+
       case 'out for delivery':
       case 'out_for_delivery':
         return 'Out for delivery';
+
       case 'delivered':
       case 'completed':
         return 'Delivered';
+
       case 'cancelled':
         return 'Cancelled';
+
       default:
         if (status.isEmpty) return 'Pending';
-        return status[0].toUpperCase() + status.substring(1);
+
+        return status[0].toUpperCase() +
+            status.substring(1);
     }
   }
 
@@ -116,15 +152,19 @@ class OrderStatusBadge extends StatelessWidget {
     switch (status.toLowerCase()) {
       case 'pending':
         return 0;
+
       case 'processing':
       case 'preparing':
         return 1;
+
       case 'out for delivery':
       case 'out_for_delivery':
         return 2;
+
       case 'delivered':
       case 'completed':
         return 3;
+
       default:
         return 0;
     }
@@ -135,11 +175,14 @@ class OrderStatusBadge extends StatelessWidget {
       case 'delivered':
       case 'completed':
         return AppColors.success;
+
       case 'cancelled':
         return AppColors.error;
+
       case 'out for delivery':
       case 'out_for_delivery':
         return AppColors.caramel;
+
       default:
         return AppColors.brown;
     }
@@ -148,8 +191,12 @@ class OrderStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _color;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 6,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -167,43 +214,63 @@ class OrderStatusBadge extends StatelessWidget {
 }
 
 class OrderProgress extends StatelessWidget {
-  const OrderProgress({super.key, required this.status});
+  const OrderProgress({
+    super.key,
+    required this.status,
+  });
 
   final String status;
 
   @override
   Widget build(BuildContext context) {
     final step = OrderStatusBadge.stepFor(status);
-    const labels = ['Pending', 'Processing', 'On the way', 'Delivered'];
+
+    const labels = [
+      'Pending',
+      'Processing',
+      'On the way',
+      'Delivered',
+    ];
 
     return Row(
-      children: List.generate(4, (index) {
-        final active = index <= step;
-        return Expanded(
-          child: Column(
-            children: [
-              Container(
-                height: 4,
-                margin: EdgeInsets.only(right: index == 3 ? 0 : 6),
-                decoration: BoxDecoration(
-                  color: active ? AppColors.brown : AppColors.border,
-                  borderRadius: BorderRadius.circular(99),
+      children: List.generate(
+        4,
+            (index) {
+          final active = index <= step;
+
+          return Expanded(
+            child: Column(
+              children: [
+                Container(
+                  height: 4,
+                  margin: EdgeInsets.only(
+                    right: index == 3 ? 0 : 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: active
+                        ? AppColors.brown
+                        : AppColors.border,
+                    borderRadius:
+                    BorderRadius.circular(99),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                labels[index],
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.caption.copyWith(
-                  fontSize: 10,
-                  color: active ? AppColors.brown : AppColors.muted,
+                const SizedBox(height: 6),
+                Text(
+                  labels[index],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(
+                    fontSize: 10,
+                    color: active
+                        ? AppColors.brown
+                        : AppColors.muted,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        );
-      }),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }

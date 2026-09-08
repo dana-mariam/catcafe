@@ -41,7 +41,11 @@ class _Placeholder extends StatelessWidget {
     return ColoredBox(
       color: AppColors.overlay,
       child: const Center(
-        child: Icon(Icons.local_cafe_rounded, color: AppColors.muted, size: 32),
+        child: Icon(
+          Icons.local_cafe_rounded,
+          color: AppColors.muted,
+          size: 32,
+        ),
       ),
     );
   }
@@ -54,7 +58,9 @@ class ProductCard extends StatelessWidget {
     required this.price,
     required this.imageUrl,
     required this.onTap,
+    this.subtitle,
     this.description,
+    this.badge,
     this.outOfStock = false,
     this.isFavorite = false,
     this.onFavorite,
@@ -65,12 +71,18 @@ class ProductCard extends StatelessWidget {
   final String name;
   final num price;
   final String imageUrl;
+
+  final String? subtitle;
   final String? description;
+  final String? badge;
+
   final bool outOfStock;
   final bool isFavorite;
+
   final VoidCallback onTap;
   final VoidCallback? onFavorite;
   final VoidCallback? onAdd;
+
   final Widget? adminMenu;
 
   @override
@@ -102,7 +114,31 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (onFavorite != null)
+
+                  if (badge != null && badge!.isNotEmpty)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: AppRadius.small,
+                        ),
+                        child: Text(
+                          badge!,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.brown,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  if (onFavorite != null && adminMenu == null)
                     Positioned(
                       top: 8,
                       right: 8,
@@ -111,8 +147,14 @@ class ProductCard extends StatelessWidget {
                         onTap: onFavorite!,
                       ),
                     ),
+
                   if (adminMenu != null)
-                    Positioned(top: 8, right: 8, child: adminMenu!),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: adminMenu!,
+                    ),
+
                   if (outOfStock)
                     Positioned(
                       left: 8,
@@ -138,6 +180,7 @@ class ProductCard extends StatelessWidget {
                 ],
               ),
             ),
+
             Expanded(
               flex: 5,
               child: Padding(
@@ -151,16 +194,35 @@ class ProductCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.product,
                     ),
-                    if (description != null && description!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        description!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.secondary.copyWith(fontSize: 12),
+
+                    if (subtitle != null && subtitle!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          subtitle!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.secondary.copyWith(
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
-                    ],
+
+                    if (description != null && description!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Text(
+                          description!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.secondary.copyWith(
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+
                     const Spacer(),
+
                     Row(
                       children: [
                         Expanded(
@@ -169,6 +231,7 @@ class ProductCard extends StatelessWidget {
                             style: AppTextStyles.price,
                           ),
                         ),
+
                         if (onAdd != null)
                           Material(
                             color: outOfStock
@@ -202,8 +265,203 @@ class ProductCard extends StatelessWidget {
   }
 }
 
+class ProductRailCard extends StatelessWidget {
+  const ProductRailCard({
+    super.key,
+    required this.name,
+    required this.price,
+    required this.imageUrl,
+    required this.onTap,
+    this.subtitle,
+    this.badge,
+    this.outOfStock = false,
+    this.isFavorite = false,
+    this.onFavorite,
+    this.onAdd,
+    this.adminMenu,
+  });
+
+  final String name;
+  final num price;
+  final String imageUrl;
+
+  final String? subtitle;
+  final String? badge;
+
+  final bool outOfStock;
+  final bool isFavorite;
+
+  final VoidCallback onTap;
+  final VoidCallback? onFavorite;
+  final VoidCallback? onAdd;
+
+  final Widget? adminMenu;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 220,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: AppRadius.extraLarge,
+          border: Border.all(color: AppColors.border),
+          boxShadow: AppShadows.card,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: ProductImage(
+                      imageUrl: imageUrl,
+                      desaturate: outOfStock,
+                    ),
+                  ),
+
+                  if (badge != null && badge!.isNotEmpty)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: AppRadius.small,
+                        ),
+                        child: Text(
+                          badge!,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.brown,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  if (onFavorite != null && adminMenu == null)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: _FavoriteButton(
+                        isFavorite: isFavorite,
+                        onTap: onFavorite!,
+                      ),
+                    ),
+
+                  if (adminMenu != null)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: adminMenu!,
+                    ),
+
+                  if (outOfStock)
+                    Positioned(
+                      left: 8,
+                      bottom: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.92),
+                          borderRadius: AppRadius.small,
+                        ),
+                        child: Text(
+                          'Sold out',
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.white,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.product,
+                  ),
+
+                  if (subtitle != null && subtitle!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.secondary.copyWith(
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 8),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '\$${price.toStringAsFixed(2)}',
+                          style: AppTextStyles.price,
+                        ),
+                      ),
+
+                      if (onAdd != null)
+                        Material(
+                          color: outOfStock
+                              ? AppColors.soft
+                              : AppColors.brown,
+                          borderRadius: AppRadius.medium,
+                          child: InkWell(
+                            borderRadius: AppRadius.medium,
+                            onTap: outOfStock ? null : onAdd,
+                            child: const SizedBox(
+                              width: 36,
+                              height: 36,
+                              child: Icon(
+                                Icons.add_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _FavoriteButton extends StatefulWidget {
-  const _FavoriteButton({required this.isFavorite, required this.onTap});
+  const _FavoriteButton({
+    required this.isFavorite,
+    required this.onTap,
+  });
 
   final bool isFavorite;
   final VoidCallback onTap;
@@ -237,7 +495,9 @@ class _FavoriteButtonState extends State<_FavoriteButton> {
                 ? Icons.favorite_rounded
                 : Icons.favorite_border_rounded,
             size: 18,
-            color: widget.isFavorite ? AppColors.error : AppColors.brown,
+            color: widget.isFavorite
+                ? AppColors.error
+                : AppColors.brown,
           ),
         ),
       ),
@@ -255,6 +515,7 @@ Route<T> cafeRoute<T>(Widget page) {
         parent: animation,
         curve: Curves.easeOutCubic,
       );
+
       return FadeTransition(
         opacity: curved,
         child: SlideTransition(
